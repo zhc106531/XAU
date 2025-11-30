@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tick Analytics Pro</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- ECharts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        .glass-sidebar { background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); }
+        .custom-checkbox:checked { background-color: #3b82f6; border-color: #3b82f6; }
+        .fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-300 font-sans h-screen flex flex-col overflow-hidden selection:bg-blue-500 selection:text-white">
+
+    <!-- 顶部数据看板 -->
+    <header class="bg-slate-900 border-b border-slate-800 h-12 flex items-center px-4 justify-between flex-shrink-0 z-20 shadow-md">
+        <div class="flex items-center gap-6 text-xs font-mono">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-layer-group text-blue-500"></i>
+                <span class="font-bold text-slate-100 tracking-wider">TICK.USD</span>
+            </div>
+            <div id="ticker-info" class="flex gap-4 opacity-80 hidden md:flex">
+                <span class="text-slate-400">O: <span id="tick-open" class="text-blue-400">--</span></span>
+                <span class="text-slate-400">H: <span id="tick-high" class="text-blue-400">--</span></span>
+                <span class="text-slate-400">L: <span id="tick-low" class="text-blue-400">--</span></span>
+                <span class="text-slate-400">C: <span id="tick-close" class="text-blue-400">--</span></span>
+                <span class="text-slate-400">Vol: <span id="tick-vol" class="text-yellow-400">--</span></span>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2 bg-slate-800 px-2 py-1 rounded border border-slate-700">
+                <div class="w-2 h-2 rounded-full bg-slate-500" id="live-indicator"></div>
+                <label class="text-xs cursor-pointer select-none flex items-center gap-2">
+                    <input type="checkbox" id="autoRefresh" class="hidden" onchange="toggleAutoRefresh()">
+                    <span id="autoRefreshText">Live Off</span>
+                </label>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+        <!-- 左侧控制面板 -->
+        <aside class="w-64 glass-sidebar border-r border-slate-800 flex flex-col p-4 gap-5 overflow-y-auto z-10">
+
+            <div class="space-y-2">
+                <div class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Timeframe</div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="setPeriod('5s')" class="period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-700 hover:bg-slate-800 hover:border-slate-600 active-period bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-900/50" data-val="5s">5s</button>
+                    <button onclick="setPeriod('10s')" class="period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-700 hover:bg-slate-800 hover:border-slate-600 text-slate-400" data-val="10s">10s</button>
+                    <button onclick="setPeriod('30s')" class="period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-700 hover:bg-slate-800 hover:border-slate-600 text-slate-400" data-val="30s">30s</button>
+                    <button onclick="setPeriod('1min')" class="period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-700 hover:bg-slate-800 hover:border-slate-600 text-slate-400" data-val="1min">1m</button>
+                </div>
+                <div class="relative mt-1">
+                    <input type="text" id="customPeriodInput" placeholder="Custom (e.g. 15s)" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition text-slate-300 placeholder-slate-600">
+                    <button onclick="applyCustomPeriod()" class="absolute right-1 top-1 bottom-1 px-2 text-[10px] bg-slate-800 hover:bg-slate-700 rounded text-slate-300 transition">GO</button>
+                </div>
+            </div>
+
+            <hr class="border-slate-800">
+
+            <div class="space-y-3">
+                <div class="text-xs font-bold text-slate-500 uppercase tracking-widest">Main Indicators</div>
+                <div class="flex items-center justify-between group">
+                    <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-300 hover:text-white transition">
+                        <input type="checkbox" id="showMA" checked onchange="updateChartVisibility()" class="rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-0 w-3.5 h-3.5">
+                        <span>MA <span class="text-xs text-slate-500">(SMA)</span></span>
+                    </label>
+                    <input type="number" id="maPeriod" value="10" class="w-12 bg-transparent border-b border-slate-700 text-right text-xs focus:border-blue-500 outline-none text-yellow-500 font-mono" onchange="fetchData()">
+                </div>
+                <div class="flex items-center justify-between group">
+                    <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-300 hover:text-white transition">
+                        <input type="checkbox" id="showEMA" checked onchange="updateChartVisibility()" class="rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-0 w-3.5 h-3.5">
+                        <span>EMA</span>
+                    </label>
+                    <input type="number" id="emaPeriod" value="20" class="w-12 bg-transparent border-b border-slate-700 text-right text-xs focus:border-cyan-500 outline-none text-cyan-400 font-mono" onchange="fetchData()">
+                </div>
+                <div class="flex items-center justify-between group">
+                    <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-300 hover:text-white transition">
+                        <input type="checkbox" id="showBOLL" onchange="updateChartVisibility()" class="rounded border-slate-600 bg-slate-800 text-purple-500 focus:ring-0 w-3.5 h-3.5">
+                        <span>BOLL</span>
+                    </label>
+                    <span class="text-[10px] text-slate-600 font-mono">20, 2</span>
+                </div>
+            </div>
+
+            <hr class="border-slate-800">
+
+            <div class="space-y-3">
+                <div class="text-xs font-bold text-slate-500 uppercase tracking-widest">Sub Indicator</div>
+                <div class="flex flex-col gap-1">
+                    <button onclick="setSubIndicator('vol')" class="sub-ind-btn text-left px-3 py-2 rounded text-xs transition border border-transparent hover:bg-slate-800 text-slate-300 bg-slate-800/50 border-slate-700 text-blue-400 font-bold" data-val="vol">
+                        <i class="fa-solid fa-chart-bar w-4"></i> Volume (Tick Count)
+                    </button>
+                    <button onclick="setSubIndicator('macd')" class="sub-ind-btn text-left px-3 py-2 rounded text-xs transition border border-transparent hover:bg-slate-800 text-slate-400" data-val="macd">
+                        <i class="fa-solid fa-wave-square w-4"></i> MACD
+                    </button>
+                    <button onclick="setSubIndicator('rsi')" class="sub-ind-btn text-left px-3 py-2 rounded text-xs transition border border-transparent hover:bg-slate-800 text-slate-400" data-val="rsi">
+                        <i class="fa-solid fa-bolt w-4"></i> RSI
+                    </button>
+                </div>
+            </div>
+
+            <div class="mt-auto">
+                <button onclick="fetchData()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 rounded border border-slate-700 transition flex items-center justify-center gap-2 text-xs font-bold">
+                    <i class="fa-solid fa-rotate"></i> Manual Refresh
+                </button>
+            </div>
+        </aside>
+
+        <!-- 主图表区域 -->
+        <main class="flex-1 bg-slate-950 relative flex flex-col">
+            <div id="main-chart" class="w-full h-full"></div>
+        </main>
+    </div>
+
+    <script>
+        let myChart = echarts.init(document.getElementById('main-chart'));
+        let currentPeriod = '5s';
+        let currentSubInd = 'vol';
+        let autoRefreshInterval = null;
+        let globalData = null;
+
+        // --- 核心修改：增加缩放状态记忆 ---
+        let zoomState = { start: 80, end: 100 };
+
+        window.addEventListener('resize', () => myChart.resize());
+
+        // 监听图表的缩放事件，实时记录用户的缩放位置
+        myChart.on('datazoom', function(evt) {
+            const opt = myChart.getOption();
+            if(opt.dataZoom && opt.dataZoom.length > 0) {
+                zoomState.start = opt.dataZoom[0].start;
+                zoomState.end = opt.dataZoom[0].end;
+            }
+        });
+
+        // --- 新增功能：键盘方向键滚动 K 线 ---
+        document.addEventListener('keydown', function(e) {
+            // 1. 如果用户正在输入框里打字（比如输入自定义周期），不要触发滚动
+            if (e.target.tagName === 'INPUT') return;
+            // 2. 确保有数据
+            if (!globalData || !globalData.categoryData) return;
+
+            let direction = 0;
+            if (e.key === 'ArrowRight') direction = 1;  // 右键：向右滚动 (看更新的时间)
+            if (e.key === 'ArrowLeft') direction = -1;  // 左键：向左滚动 (看历史时间)
+
+            if (direction === 0) return;
+
+            // 3. 计算步长：100% 除以总 K 线数量 = 单根 K 线的百分比
+            const totalBars = globalData.categoryData.length;
+            if (totalBars === 0) return;
+
+            const step = (100 / totalBars) * direction;
+
+            // 4. 计算新的起止位置
+            let newStart = zoomState.start + step;
+            let newEnd = zoomState.end + step;
+
+            // 5. 边界检查 (防止滚出画面)
+            const range = zoomState.end - zoomState.start; // 保持当前窗口大小
+
+            if (newEnd > 100) {
+                newEnd = 100;
+                newStart = 100 - range;
+            } else if (newStart < 0) {
+                newStart = 0;
+                newEnd = range;
+            }
+
+            // 6. 驱动 ECharts 执行缩放/移动
+            myChart.dispatchAction({
+                type: 'dataZoom',
+                start: newStart,
+                end: newEnd
+            });
+            // 注意：dispatchAction 会触发上面的 myChart.on('datazoom')，
+            // 所以 zoomState 会自动更新，不需要这里手动赋值
+        });
+
+        // 切换周期时，通常希望看最新的数据，所以重置缩放（可选）
+        function setPeriod(val) {
+            currentPeriod = val;
+            // 如果希望切换周期也保留缩放，可以注释掉下面这行
+            zoomState = { start: 80, end: 100 };
+
+            document.querySelectorAll('.period-btn').forEach(btn => {
+                btn.className = "period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-700 hover:bg-slate-800 hover:border-slate-600 text-slate-400";
+                if(btn.dataset.val === val) {
+                    btn.className = "period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-700 hover:bg-slate-800 hover:border-slate-600 active-period bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-900/50";
+                }
+            });
+            fetchData();
+        }
+
+        function applyCustomPeriod() {
+            const val = document.getElementById('customPeriodInput').value;
+            if(val) {
+                zoomState = { start: 80, end: 100 }; // 重置缩放
+                document.querySelectorAll('.period-btn').forEach(btn => btn.className = "period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-700 hover:bg-slate-800 hover:border-slate-600 text-slate-400");
+                currentPeriod = val;
+                fetchData();
+            }
+        }
+
+        function setSubIndicator(val) {
+            currentSubInd = val;
+            document.querySelectorAll('.sub-ind-btn').forEach(btn => {
+                btn.classList.remove('bg-slate-800/50', 'border-slate-700', 'text-blue-400', 'font-bold');
+                btn.classList.add('text-slate-400');
+                if(btn.dataset.val === val) {
+                    btn.classList.add('bg-slate-800/50', 'border-slate-700', 'text-blue-400', 'font-bold');
+                    btn.classList.remove('text-slate-400');
+                }
+            });
+            if(globalData) renderChart(globalData);
+        }
+
+        function toggleAutoRefresh() {
+            const checkbox = document.getElementById('autoRefresh');
+            const indicator = document.getElementById('live-indicator');
+            const text = document.getElementById('autoRefreshText');
+
+            if(checkbox.checked) {
+                indicator.classList.remove('bg-slate-500');
+                indicator.classList.add('bg-green-500', 'animate-pulse');
+                text.innerText = "Live On";
+                text.classList.add('text-green-500');
+                fetchData();
+                autoRefreshInterval = setInterval(fetchData, 2000);
+            } else {
+                indicator.classList.remove('bg-green-500', 'animate-pulse');
+                indicator.classList.add('bg-slate-500');
+                text.innerText = "Live Off";
+                text.classList.remove('text-green-500');
+                clearInterval(autoRefreshInterval);
+            }
+        }
+
+        function updateChartVisibility() {
+            if(globalData) renderChart(globalData);
+        }
+
+        function fetchData() {
+            const maP = document.getElementById('maPeriod').value;
+            const emaP = document.getElementById('emaPeriod').value;
+
+            if(!autoRefreshInterval) {
+                myChart.showLoading({ color: '#3b82f6', textColor: '#94a3b8', maskColor: 'rgba(15, 23, 42, 0.4)' });
+            }
+
+            fetch(`/api/kline?period=${currentPeriod}&ma=${maP}&ema=${emaP}`)
+                .then(res => res.json())
+                .then(data => {
+                    myChart.hideLoading();
+                    if(data.status === 'success') {
+                        globalData = data;
+                        renderChart(data);
+                    } else {
+                        console.error(data.message);
+                    }
+                })
+                .catch(err => {
+                    myChart.hideLoading();
+                    console.error(err);
+                });
+        }
+
+        function renderChart(data) {
+            const showMA = document.getElementById('showMA').checked;
+            const showEMA = document.getElementById('showEMA').checked;
+            const showBOLL = document.getElementById('showBOLL').checked;
+
+            const maP = document.getElementById('maPeriod').value;
+            const emaP = document.getElementById('emaPeriod').value;
+
+            const upColor = '#22c55e';
+            const downColor = '#ef4444';
+            const maColor = '#eab308';
+            const emaColor = '#06b6d4';
+            const bollColor = '#a855f7';
+
+            let seriesList = [
+                {
+                    name: 'Price',
+                    type: 'candlestick',
+                    data: data.values.map(item => [item[0], item[1], item[2], item[3]]),
+                    itemStyle: { color: upColor, color0: downColor, borderColor: upColor, borderColor0: downColor },
+                    z: 10
+                }
+            ];
+
+            if(showMA) {
+                seriesList.push({ name: `MA${maP}`, type: 'line', data: data.maData, smooth: true, showSymbol: false, lineStyle: { width: 1, color: maColor } });
+            }
+            if(showEMA) {
+                seriesList.push({ name: `EMA${emaP}`, type: 'line', data: data.emaData, smooth: true, showSymbol: false, lineStyle: { width: 1, color: emaColor } });
+            }
+            if(showBOLL) {
+                seriesList.push(
+                    { name: 'BOLL UP', type: 'line', data: data.boll.up, smooth: true, showSymbol: false, lineStyle: { width: 1, opacity: 0.5, color: bollColor } },
+                    { name: 'BOLL LOW', type: 'line', data: data.boll.low, smooth: true, showSymbol: false, lineStyle: { width: 1, opacity: 0.5, color: bollColor } }
+                );
+            }
+
+            let gridConfig = [
+                { left: '50', right: '20', top: '20', height: '60%' },
+                { left: '50', right: '20', top: '75%', height: '15%' }
+            ];
+
+            let xAxisConfig = [
+                { type: 'category', data: data.categoryData, gridIndex: 0, axisLabel: { show: false }, axisTick: { show: false }, boundaryGap: false },
+                { type: 'category', data: data.categoryData, gridIndex: 1, axisLabel: { color: '#64748b', fontSize: 10 }, boundaryGap: false }
+            ];
+
+            if(currentSubInd === 'vol') {
+                seriesList.push({
+                    name: 'Volume',
+                    type: 'bar',
+                    xAxisIndex: 1,
+                    yAxisIndex: 1,
+                    data: data.values.map((item, index) => {
+                        const isUp = item[1] >= item[0];
+                        return {
+                            value: item[4],
+                            itemStyle: { color: isUp ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)' }
+                        }
+                    })
+                });
+            } else if(currentSubInd === 'macd') {
+                seriesList.push(
+                    { name: 'DIF', type: 'line', xAxisIndex: 1, yAxisIndex: 1, data: data.macd.dif, showSymbol: false, lineStyle: { width: 1, color: '#fff' } },
+                    { name: 'DEA', type: 'line', xAxisIndex: 1, yAxisIndex: 1, data: data.macd.dea, showSymbol: false, lineStyle: { width: 1, color: '#f59e0b' } },
+                    {
+                        name: 'MACD', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, data: data.macd.hist,
+                        itemStyle: { color: (params) => params.value > 0 ? '#22c55e' : '#ef4444' }
+                    }
+                );
+            } else if(currentSubInd === 'rsi') {
+                seriesList.push({
+                    name: 'RSI', type: 'line', xAxisIndex: 1, yAxisIndex: 1, data: data.rsi, showSymbol: false,
+                    lineStyle: { width: 1, color: '#d946ef' },
+                    markLine: {
+                        symbol: 'none',
+                        data: [{ yAxis: 70 }, { yAxis: 30 }],
+                        lineStyle: { type: 'dashed', color: '#475569', width: 0.5 }
+                    }
+                });
+            }
+
+            const option = {
+                backgroundColor: '#020617',
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'cross', label: { backgroundColor: '#334155' } },
+                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                    borderColor: '#334155',
+                    textStyle: { color: '#e2e8f0', fontSize: 12 },
+                    formatter: function (params) {
+                        if (params.length > 0) {
+                            const kline = params.find(p => p.seriesName === 'Price');
+                            if(kline) {
+                                const [o, c, l, h, v] = [kline.data[1], kline.data[2], kline.data[3], kline.data[4], 'N/A'];
+                                let vol = '--';
+                                if(currentSubInd === 'vol') {
+                                     const vItem = params.find(p => p.seriesName === 'Volume');
+                                     if(vItem) vol = vItem.value;
+                                }
+
+                                document.getElementById('tick-open').innerText = o.toFixed(2);
+                                document.getElementById('tick-high').innerText = h.toFixed(2);
+                                document.getElementById('tick-low').innerText = l.toFixed(2);
+                                const closeEl = document.getElementById('tick-close');
+                                closeEl.innerText = c.toFixed(2);
+                                closeEl.className = c >= o ? 'text-green-500 font-bold' : 'text-red-500 font-bold';
+                                document.getElementById('tick-vol').innerText = vol;
+                            }
+
+                            let html = `<div class="font-mono text-xs">${params[0].axisValue}</div>`;
+                            params.forEach(item => {
+                                if(item.seriesType !== 'candlestick' && item.value !== undefined && item.value !== null) {
+                                    let val = typeof item.value === 'number' ? item.value.toFixed(2) : item.value;
+                                    html += `<div class="flex justify-between gap-4 text-xs"><span style="color:${item.color}">${item.seriesName}</span><span class="text-slate-200">${val}</span></div>`;
+                                }
+                            });
+                            return html;
+                        }
+                    }
+                },
+                axisPointer: { link: { xAxisIndex: 'all' } },
+                grid: gridConfig,
+                xAxis: xAxisConfig,
+                yAxis: [
+                    { scale: true, gridIndex: 0, splitLine: { lineStyle: { color: '#1e293b' } }, axisLabel: { color: '#64748b' } },
+                    { scale: true, gridIndex: 1, splitLine: { show: false }, axisLabel: { color: '#64748b', fontSize: 10 }, splitNumber: 3 }
+                ],
+                // --- 核心修改：使用 zoomState 填充 ---
+                dataZoom: [
+                    { type: 'inside', xAxisIndex: [0, 1], start: zoomState.start, end: zoomState.end },
+                    { type: 'slider', xAxisIndex: [0, 1], top: '94%', height: 16, borderColor: '#1e293b', fillerColor: 'rgba(59, 130, 246, 0.1)', handleStyle: { color: '#3b82f6' }, textStyle: {color: '#64748b'}, start: zoomState.start, end: zoomState.end }
+                ],
+                series: seriesList
+            };
+
+            myChart.setOption(option, true);
+        }
+
+        document.addEventListener('DOMContentLoaded', fetchData);
+    </script>
+</body>
+</html>
