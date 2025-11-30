@@ -11,35 +11,39 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* 优化滚动条样式 */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #0f172a; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        /* 深色模式下的玻璃效果 */
         .glass-sidebar { background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); }
+
         .custom-checkbox:checked { background-color: #3b82f6; border-color: #3b82f6; }
         .fade-in { animation: fadeIn 0.3s ease-in; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-300 font-sans h-screen flex flex-col overflow-hidden selection:bg-blue-500 selection:text-white">
+<body class="bg-slate-950 text-slate-300 font-sans h-screen flex flex-col overflow-hidden selection:bg-blue-500 selection:text-white transition-colors duration-300">
 
     <!-- 顶部数据看板 -->
-    <header class="bg-slate-900 border-b border-slate-800 h-12 flex items-center px-4 justify-between flex-shrink-0 z-20 shadow-md">
+    <header id="main-header" class="bg-slate-900 border-b border-slate-800 h-12 flex items-center px-4 justify-between flex-shrink-0 z-20 shadow-md transition-colors duration-300">
         <div class="flex items-center gap-6 text-xs font-mono">
             <div class="flex items-center gap-2">
                 <i class="fa-solid fa-layer-group text-blue-500"></i>
-                <span class="font-bold text-slate-100 tracking-wider">TICK.USD</span>
+                <span id="app-title" class="font-bold text-slate-100 tracking-wider">TICK.USD</span>
             </div>
             <div id="ticker-info" class="flex gap-4 opacity-80 hidden md:flex">
-                <span class="text-slate-400">O: <span id="tick-open" class="text-blue-400">--</span></span>
-                <span class="text-slate-400">H: <span id="tick-high" class="text-blue-400">--</span></span>
-                <span class="text-slate-400">L: <span id="tick-low" class="text-blue-400">--</span></span>
-                <span class="text-slate-400">C: <span id="tick-close" class="text-blue-400">--</span></span>
-                <span class="text-slate-400">Vol: <span id="tick-vol" class="text-yellow-400">--</span></span>
+                <span class="info-label text-slate-400">O: <span id="tick-open" class="text-blue-400">--</span></span>
+                <span class="info-label text-slate-400">H: <span id="tick-high" class="text-blue-400">--</span></span>
+                <span class="info-label text-slate-400">L: <span id="tick-low" class="text-blue-400">--</span></span>
+                <span class="info-label text-slate-400">C: <span id="tick-close" class="text-blue-400">--</span></span>
+                <span class="info-label text-slate-400">Vol: <span id="tick-vol" class="text-yellow-400">--</span></span>
             </div>
         </div>
         <div class="flex items-center gap-3">
-            <div class="flex items-center gap-2 bg-slate-800 px-2 py-1 rounded border border-slate-700">
+            <div class="flex items-center gap-2 bg-slate-800 px-2 py-1 rounded border border-slate-700 theme-status-box transition-colors duration-300">
                 <div class="w-2 h-2 rounded-full bg-slate-500" id="live-indicator"></div>
                 <label class="text-xs cursor-pointer select-none flex items-center gap-2">
                     <input type="checkbox" id="autoRefresh" class="hidden" onchange="toggleAutoRefresh()">
@@ -51,56 +55,63 @@
 
     <div class="flex flex-1 overflow-hidden">
         <!-- 左侧控制面板 -->
-        <aside class="w-64 glass-sidebar border-r border-slate-800 flex flex-col p-4 gap-5 overflow-y-auto z-10">
+        <aside id="main-sidebar" class="w-64 glass-sidebar border-r border-slate-800 flex flex-col p-4 gap-5 overflow-y-auto z-10 transition-colors duration-300">
 
             <div class="space-y-2">
-                <div class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Timeframe</div>
+                <div class="section-title text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Timeframe</div>
                 <div class="grid grid-cols-2 gap-2">
-                    <button onclick="setPeriod('5s')" class="period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-700 hover:bg-slate-800 hover:border-slate-600 active-period bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-900/50" data-val="5s">5s</button>
-                    <button onclick="setPeriod('10s')" class="period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-700 hover:bg-slate-800 hover:border-slate-600 text-slate-400" data-val="10s">10s</button>
-                    <button onclick="setPeriod('30s')" class="period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-700 hover:bg-slate-800 hover:border-slate-600 text-slate-400" data-val="30s">30s</button>
-                    <button onclick="setPeriod('1min')" class="period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-700 hover:bg-slate-800 hover:border-slate-600 text-slate-400" data-val="1min">1m</button>
+                    <button onclick="setPeriod('5s')" class="period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-700 hover:bg-slate-800 text-slate-400 active-period bg-blue-600 border-blue-500 text-white" data-val="5s">5s</button>
+                    <button onclick="setPeriod('10s')" class="period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-700 hover:bg-slate-800 text-slate-400" data-val="10s">10s</button>
+                    <button onclick="setPeriod('30s')" class="period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-700 hover:bg-slate-800 text-slate-400" data-val="30s">30s</button>
+                    <button onclick="setPeriod('1min')" class="period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-700 hover:bg-slate-800 text-slate-400" data-val="1min">1m</button>
                 </div>
                 <div class="relative mt-1">
-                    <input type="text" id="customPeriodInput" placeholder="Custom (e.g. 15s)" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition text-slate-300 placeholder-slate-600">
-                    <button onclick="applyCustomPeriod()" class="absolute right-1 top-1 bottom-1 px-2 text-[10px] bg-slate-800 hover:bg-slate-700 rounded text-slate-300 transition">GO</button>
+                    <input type="text" id="customPeriodInput" placeholder="Custom (e.g. 15s)" class="theme-input w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition text-slate-300 placeholder-slate-600">
+                    <button onclick="applyCustomPeriod()" class="theme-input-btn absolute right-1 top-1 bottom-1 px-2 text-[10px] bg-slate-800 hover:bg-slate-700 rounded text-slate-300 transition">GO</button>
                 </div>
             </div>
 
-            <hr class="border-slate-800">
+            <hr class="theme-divider border-slate-800">
 
             <div class="space-y-3">
-                <div class="text-xs font-bold text-slate-500 uppercase tracking-widest">Main Indicators</div>
+                <div class="section-title text-xs font-bold text-slate-500 uppercase tracking-widest">Main Indicators</div>
+                <!-- MA -->
                 <div class="flex items-center justify-between group">
-                    <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-300 hover:text-white transition">
-                        <input type="checkbox" id="showMA" checked onchange="updateChartVisibility()" class="rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-0 w-3.5 h-3.5">
-                        <span>MA <span class="text-xs text-slate-500">(SMA)</span></span>
+                    <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-300 hover:text-white transition theme-text-main">
+                        <input type="checkbox" id="showMA" checked onchange="updateChartVisibility()" class="rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-0 w-3.5 h-3.5 theme-checkbox">
+                        <span>MA <span class="text-xs text-slate-500 theme-text-sub">(SMA)</span></span>
                     </label>
-                    <input type="number" id="maPeriod" value="10" class="w-12 bg-transparent border-b border-slate-700 text-right text-xs focus:border-blue-500 outline-none text-yellow-500 font-mono" onchange="fetchData()">
+                    <input type="number" id="maPeriod" value="10" class="theme-input-line w-12 bg-transparent border-b border-slate-700 text-right text-xs focus:border-blue-500 outline-none text-yellow-500 font-mono" onchange="fetchData()">
                 </div>
+                <!-- EMA -->
                 <div class="flex items-center justify-between group">
-                    <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-300 hover:text-white transition">
-                        <input type="checkbox" id="showEMA" checked onchange="updateChartVisibility()" class="rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-0 w-3.5 h-3.5">
+                    <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-300 hover:text-white transition theme-text-main">
+                        <input type="checkbox" id="showEMA" checked onchange="updateChartVisibility()" class="rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-0 w-3.5 h-3.5 theme-checkbox">
                         <span>EMA</span>
                     </label>
-                    <input type="number" id="emaPeriod" value="20" class="w-12 bg-transparent border-b border-slate-700 text-right text-xs focus:border-cyan-500 outline-none text-cyan-400 font-mono" onchange="fetchData()">
+                    <input type="number" id="emaPeriod" value="20" class="theme-input-line w-12 bg-transparent border-b border-slate-700 text-right text-xs focus:border-cyan-500 outline-none text-cyan-400 font-mono" onchange="fetchData()">
                 </div>
+                <!-- BOLL -->
                 <div class="flex items-center justify-between group">
-                    <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-300 hover:text-white transition">
-                        <input type="checkbox" id="showBOLL" onchange="updateChartVisibility()" class="rounded border-slate-600 bg-slate-800 text-purple-500 focus:ring-0 w-3.5 h-3.5">
+                    <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-300 hover:text-white transition theme-text-main">
+                        <input type="checkbox" id="showBOLL" onchange="updateChartVisibility()" class="rounded border-slate-600 bg-slate-800 text-purple-500 focus:ring-0 w-3.5 h-3.5 theme-checkbox">
                         <span>BOLL</span>
                     </label>
-                    <span class="text-[10px] text-slate-600 font-mono">20, 2</span>
+                    <div class="flex gap-1 items-center">
+                        <input type="number" id="bollPeriod" value="20" class="theme-input-line w-10 bg-transparent border-b border-slate-700 text-center text-xs focus:border-purple-500 outline-none text-purple-400 font-mono" onchange="fetchData()">
+                        <span class="text-[10px] text-slate-600 font-mono theme-text-sub">/</span>
+                        <input type="number" id="bollStd" value="2" step="0.5" class="theme-input-line w-10 bg-transparent border-b border-slate-700 text-center text-xs focus:border-purple-500 outline-none text-purple-400 font-mono" onchange="fetchData()">
+                    </div>
                 </div>
             </div>
 
-            <hr class="border-slate-800">
+            <hr class="theme-divider border-slate-800">
 
             <div class="space-y-3">
-                <div class="text-xs font-bold text-slate-500 uppercase tracking-widest">Sub Indicator</div>
+                <div class="section-title text-xs font-bold text-slate-500 uppercase tracking-widest">Sub Indicator</div>
                 <div class="flex flex-col gap-1">
                     <button onclick="setSubIndicator('vol')" class="sub-ind-btn text-left px-3 py-2 rounded text-xs transition border border-transparent hover:bg-slate-800 text-slate-300 bg-slate-800/50 border-slate-700 text-blue-400 font-bold" data-val="vol">
-                        <i class="fa-solid fa-chart-bar w-4"></i> Volume (Tick Count)
+                        <i class="fa-solid fa-chart-bar w-4"></i> Volume
                     </button>
                     <button onclick="setSubIndicator('macd')" class="sub-ind-btn text-left px-3 py-2 rounded text-xs transition border border-transparent hover:bg-slate-800 text-slate-400" data-val="macd">
                         <i class="fa-solid fa-wave-square w-4"></i> MACD
@@ -111,15 +122,38 @@
                 </div>
             </div>
 
-            <div class="mt-auto">
-                <button onclick="fetchData()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 rounded border border-slate-700 transition flex items-center justify-center gap-2 text-xs font-bold">
-                    <i class="fa-solid fa-rotate"></i> Manual Refresh
-                </button>
+            <!-- 底部按钮区 -->
+            <div class="mt-auto relative">
+                <!-- 设置面板 -->
+                <div id="settingsPanel" class="hidden absolute bottom-12 left-0 w-full bg-slate-800 border border-slate-700 rounded p-3 space-y-3 fade-in shadow-xl z-30 theme-panel">
+                    <div class="section-title text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Theme</div>
+                    <div class="flex items-center justify-between theme-text-main">
+                        <span class="text-sm">Light/Dark Mode</span>
+                        <button onclick="toggleTheme()" id="themeToggle" class="px-2 py-0.5 rounded text-xs transition-colors duration-200 font-mono bg-blue-600 text-white border border-blue-600">Dark</button>
+                    </div>
+
+                    <div class="section-title text-xs font-bold text-slate-500 uppercase tracking-widest pt-2 mb-1 border-t border-slate-700 theme-divider">Visuals</div>
+                    <div class="flex items-center justify-between theme-text-main">
+                        <label class="flex items-center gap-2 cursor-pointer text-sm">
+                            <input type="checkbox" id="showBidAsk" onchange="toggleBidAskLines()" class="rounded border-slate-600 bg-slate-900 text-blue-500 focus:ring-0 w-3.5 h-3.5 theme-checkbox">
+                            <span>Bid/Ask 20p Lines</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="flex gap-2">
+                    <button onclick="fetchData()" class="action-btn flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 rounded border border-slate-700 transition flex items-center justify-center gap-2 text-xs font-bold">
+                        <i class="fa-solid fa-rotate"></i> Refresh
+                    </button>
+                    <button onclick="toggleSettingsPanel()" id="settingsButton" class="action-btn w-10 bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 rounded border border-slate-700 transition flex items-center justify-center text-xs font-bold">
+                        <i class="fa-solid fa-gear"></i>
+                    </button>
+                </div>
             </div>
         </aside>
 
         <!-- 主图表区域 -->
-        <main class="flex-1 bg-slate-950 relative flex flex-col">
+        <main id="chart-container" class="flex-1 bg-slate-950 relative flex flex-col transition-colors duration-300">
             <div id="main-chart" class="w-full h-full"></div>
         </main>
     </div>
@@ -130,13 +164,14 @@
         let currentSubInd = 'vol';
         let autoRefreshInterval = null;
         let globalData = null;
-
-        // --- 核心修改：增加缩放状态记忆 ---
+        let showBidAskLines = false;
+        const BID_ASK_SPREAD = 0.20;
         let zoomState = { start: 80, end: 100 };
+        let isDarkMode = true; // 跟踪当前主题状态
 
         window.addEventListener('resize', () => myChart.resize());
 
-        // 监听图表的缩放事件，实时记录用户的缩放位置
+        // 缩放记忆
         myChart.on('datazoom', function(evt) {
             const opt = myChart.getOption();
             if(opt.dataZoom && opt.dataZoom.length > 0) {
@@ -145,70 +180,269 @@
             }
         });
 
-        // --- 新增功能：键盘方向键滚动 K 线 ---
+        // --- 性能优化：使用 requestAnimationFrame 处理鼠标移动 ---
+        let rafId = null; // 用于存储 RAF ID
+        let lastMouseEvent = null; // 存储最新的鼠标事件
+
+        myChart.getDom().addEventListener('mousemove', function(e) {
+            if (!showBidAskLines || !globalData) return;
+
+            // 保存最新的事件对象
+            lastMouseEvent = e;
+
+            // 如果已经有一个任务在等待执行，则不重复请求
+            if (rafId) return;
+
+            rafId = requestAnimationFrame(() => {
+                handleMouseMove(lastMouseEvent);
+                rafId = null; // 任务执行完毕，重置 ID
+            });
+        });
+
+        function handleMouseMove(e) {
+             // 再次检查开关，以防在 RAF 等待期间被关闭
+            if (!showBidAskLines) return;
+
+            // 获取 ECharts 实例坐标转换
+            const rect = myChart.getDom().getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            let price = null;
+            try {
+                // seriesIndex: 0 (主图 K 线)
+                const point = myChart.convertFromPixel({ seriesIndex: 0 }, [x, y]);
+                if (point) {
+                    price = point[1];
+                }
+            } catch (err) {
+                // 忽略转换错误
+            }
+
+            if (price === null || isNaN(price)) return;
+
+            const halfSpread = BID_ASK_SPREAD / 2;
+            const askPrice = price + halfSpread;
+            const bidPrice = price - halfSpread;
+
+            const lineColor = isDarkMode ? '#60a5fa' : '#2563eb';
+            const textColor = isDarkMode ? '#e2e8f0' : '#1e293b';
+            const bgColor = isDarkMode ? 'rgba(15, 23, 42, 0.8)' : 'rgba(255, 255, 255, 0.9)';
+
+            // 使用 setOption 更新
+            myChart.setOption({
+                series: [{
+                    id: 'Price',
+                    markLine: {
+                        silent: true,
+                        symbol: 'none',
+                        animation: false, // 关键：禁用动画，防止延迟
+                        lineStyle: {
+                            type: 'solid',
+                            color: lineColor,
+                            width: 1,
+                            opacity: 0.8
+                        },
+                        label: {
+                            show: true,
+                            position: 'end',
+                            formatter: (params) => `${params.name}: ${params.value.toFixed(2)}`,
+                            color: textColor,
+                            backgroundColor: bgColor,
+                            padding: [2, 4],
+                            borderRadius: 2,
+                            fontSize: 10
+                        },
+                        data: [
+                            { yAxis: askPrice, name: 'Ask' },
+                            { yAxis: bidPrice, name: 'Bid' }
+                        ]
+                    }
+                }]
+            });
+        }
+
+        // 鼠标移出时清除线
+        myChart.getDom().addEventListener('mouseout', function() {
+            if (showBidAskLines) {
+                myChart.setOption({
+                    series: [{
+                        id: 'Price',
+                        markLine: { data: [] }
+                    }]
+                });
+            }
+        });
+
+
+        // --- 键盘滚动 ---
         document.addEventListener('keydown', function(e) {
-            // 1. 如果用户正在输入框里打字（比如输入自定义周期），不要触发滚动
             if (e.target.tagName === 'INPUT') return;
-            // 2. 确保有数据
             if (!globalData || !globalData.categoryData) return;
 
             let direction = 0;
-            if (e.key === 'ArrowRight') direction = 1;  // 右键：向右滚动 (看更新的时间)
-            if (e.key === 'ArrowLeft') direction = -1;  // 左键：向左滚动 (看历史时间)
+            if (e.key === 'ArrowRight') direction = 1;
+            if (e.key === 'ArrowLeft') direction = -1;
 
             if (direction === 0) return;
 
-            // 3. 计算步长：100% 除以总 K 线数量 = 单根 K 线的百分比
             const totalBars = globalData.categoryData.length;
             if (totalBars === 0) return;
 
-            const step = (100 / totalBars) * direction;
-
-            // 4. 计算新的起止位置
+            const step = (100 / totalBars) * direction * 3;
             let newStart = zoomState.start + step;
             let newEnd = zoomState.end + step;
+            const range = zoomState.end - zoomState.start;
 
-            // 5. 边界检查 (防止滚出画面)
-            const range = zoomState.end - zoomState.start; // 保持当前窗口大小
+            if (newEnd > 100) { newEnd = 100; newStart = 100 - range; }
+            else if (newStart < 0) { newStart = 0; newEnd = range; }
 
-            if (newEnd > 100) {
-                newEnd = 100;
-                newStart = 100 - range;
-            } else if (newStart < 0) {
-                newStart = 0;
-                newEnd = range;
-            }
-
-            // 6. 驱动 ECharts 执行缩放/移动
             myChart.dispatchAction({
                 type: 'dataZoom',
+                dataZoomIndex: [0, 1],
                 start: newStart,
                 end: newEnd
             });
-            // 注意：dispatchAction 会触发上面的 myChart.on('datazoom')，
-            // 所以 zoomState 会自动更新，不需要这里手动赋值
         });
 
-        // 切换周期时，通常希望看最新的数据，所以重置缩放（可选）
-        function setPeriod(val) {
-            currentPeriod = val;
-            // 如果希望切换周期也保留缩放，可以注释掉下面这行
-            zoomState = { start: 80, end: 100 };
+        // --- 主题切换 (彻底修复) ---
+        function toggleSettingsPanel() {
+            document.getElementById('settingsPanel').classList.toggle('hidden');
+        }
 
+        function toggleTheme() {
+            isDarkMode = !isDarkMode;
+            const btn = document.getElementById('themeToggle');
+
+            // 1. 全局背景和文字
+            const body = document.body;
+            const header = document.getElementById('main-header');
+            const sidebar = document.getElementById('main-sidebar');
+            const chartContainer = document.getElementById('chart-container');
+            const appTitle = document.getElementById('app-title');
+
+            if (isDarkMode) {
+                // 切换到深色
+                body.className = "bg-slate-950 text-slate-300 font-sans h-screen flex flex-col overflow-hidden selection:bg-blue-500 selection:text-white transition-colors duration-300";
+                header.className = "bg-slate-900 border-b border-slate-800 h-12 flex items-center px-4 justify-between flex-shrink-0 z-20 shadow-md transition-colors duration-300";
+                sidebar.className = "w-64 glass-sidebar border-r border-slate-800 flex flex-col p-4 gap-5 overflow-y-auto z-10 transition-colors duration-300";
+                chartContainer.className = "flex-1 bg-slate-950 relative flex flex-col transition-colors duration-300";
+                appTitle.className = "font-bold text-slate-100 tracking-wider";
+
+                btn.innerText = "Dark";
+                btn.className = "px-2 py-0.5 rounded text-xs transition-colors duration-200 font-mono bg-blue-600 text-white border border-blue-600";
+
+                updateThemeClasses(true);
+            } else {
+                // 切换到浅色
+                body.className = "bg-slate-50 text-slate-800 font-sans h-screen flex flex-col overflow-hidden selection:bg-blue-200 selection:text-slate-900 transition-colors duration-300";
+                header.className = "bg-white border-b border-slate-200 h-12 flex items-center px-4 justify-between flex-shrink-0 z-20 shadow-sm transition-colors duration-300";
+                sidebar.className = "w-64 bg-white border-r border-slate-200 flex flex-col p-4 gap-5 overflow-y-auto z-10 transition-colors duration-300"; // 移除 glass-sidebar
+                chartContainer.className = "flex-1 bg-white relative flex flex-col transition-colors duration-300";
+                appTitle.className = "font-bold text-slate-800 tracking-wider";
+
+                btn.innerText = "Light";
+                btn.className = "px-2 py-0.5 rounded text-xs transition-colors duration-200 font-mono bg-slate-200 text-slate-600 border border-slate-300";
+
+                updateThemeClasses(false);
+            }
+
+            // 刷新图表以应用新配色
+            if(globalData) renderChart(globalData);
+        }
+
+        // 辅助函数：更新具体组件的类名
+        function updateThemeClasses(dark) {
+            // 文字颜色 - 次要信息
+            document.querySelectorAll('.info-label').forEach(el => el.className = dark ? "info-label text-slate-400" : "info-label text-slate-500");
+            document.querySelectorAll('.section-title').forEach(el => el.className = dark ? "section-title text-xs font-bold text-slate-500 uppercase tracking-widest mb-2" : "section-title text-xs font-bold text-slate-400 uppercase tracking-widest mb-2");
+            document.querySelectorAll('.theme-text-main').forEach(el => el.className = dark ? "flex items-center gap-2 cursor-pointer text-sm text-slate-300 hover:text-white transition theme-text-main" : "flex items-center gap-2 cursor-pointer text-sm text-slate-700 hover:text-blue-600 transition theme-text-main");
+            document.querySelectorAll('.theme-text-sub').forEach(el => el.className = dark ? "text-xs text-slate-500 theme-text-sub" : "text-xs text-slate-400 theme-text-sub");
+
+            // 输入框和按钮
             document.querySelectorAll('.period-btn').forEach(btn => {
-                btn.className = "period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-700 hover:bg-slate-800 hover:border-slate-600 text-slate-400";
-                if(btn.dataset.val === val) {
-                    btn.className = "period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-700 hover:bg-slate-800 hover:border-slate-600 active-period bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-900/50";
+                if(!btn.classList.contains('active-period')) {
+                    btn.className = dark
+                        ? "period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-700 hover:bg-slate-800 text-slate-400"
+                        : "period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-200 hover:bg-slate-100 text-slate-600";
+                } else {
+                     // 激活状态保持蓝色，但在浅色下调整阴影
+                     btn.className = dark
+                        ? "period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-700 hover:bg-slate-800 active-period bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-900/50"
+                        : "period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-200 hover:bg-slate-100 active-period bg-blue-500 border-blue-400 text-white shadow-md shadow-blue-200";
                 }
             });
+
+            const inputClass = dark ? "theme-input w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition text-slate-300 placeholder-slate-600" : "theme-input w-full bg-slate-50 border border-slate-300 rounded px-3 py-1.5 text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition text-slate-800 placeholder-slate-400";
+            document.getElementById('customPeriodInput').className = inputClass;
+
+            const inputBtnClass = dark ? "theme-input-btn absolute right-1 top-1 bottom-1 px-2 text-[10px] bg-slate-800 hover:bg-slate-700 rounded text-slate-300 transition" : "theme-input-btn absolute right-1 top-1 bottom-1 px-2 text-[10px] bg-slate-200 hover:bg-slate-300 rounded text-slate-600 transition";
+            document.querySelector('.theme-input-btn').className = inputBtnClass;
+
+            // 分割线
+            document.querySelectorAll('.theme-divider').forEach(el => {
+                if(el.tagName === 'HR') el.className = dark ? "theme-divider border-slate-800" : "theme-divider border-slate-200";
+                else if(el.tagName === 'DIV') el.className = dark ? "section-title text-xs font-bold text-slate-500 uppercase tracking-widest pt-2 mb-1 border-t border-slate-700 theme-divider" : "section-title text-xs font-bold text-slate-400 uppercase tracking-widest pt-2 mb-1 border-t border-slate-200 theme-divider";
+            });
+
+            // 底部操作按钮
+            document.querySelectorAll('.action-btn').forEach(btn => {
+                btn.className = dark
+                    ? "action-btn flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 rounded border border-slate-700 transition flex items-center justify-center gap-2 text-xs font-bold" + (btn.id === 'settingsButton' ? " w-10" : "")
+                    : "action-btn flex-1 bg-white hover:bg-slate-50 text-slate-700 py-2 rounded border border-slate-200 transition flex items-center justify-center gap-2 text-xs font-bold" + (btn.id === 'settingsButton' ? " w-10" : "");
+            });
+
+            // Live Status Box
+            document.querySelector('.theme-status-box').className = dark ? "flex items-center gap-2 bg-slate-800 px-2 py-1 rounded border border-slate-700 theme-status-box transition-colors duration-300" : "flex items-center gap-2 bg-white px-2 py-1 rounded border border-slate-200 theme-status-box transition-colors duration-300";
+
+            // 设置面板
+            document.getElementById('settingsPanel').className = dark ? "hidden absolute bottom-12 left-0 w-full bg-slate-800 border border-slate-700 rounded p-3 space-y-3 fade-in shadow-xl z-30 theme-panel" : "hidden absolute bottom-12 left-0 w-full bg-white border border-slate-200 rounded p-3 space-y-3 fade-in shadow-xl z-30 theme-panel";
+
+            // Sub Indicators
+            updateSubIndStyle(currentSubInd);
+        }
+
+        function updateSubIndStyle(val) {
+            document.querySelectorAll('.sub-ind-btn').forEach(btn => {
+                const isActive = btn.dataset.val === val;
+                if(isDarkMode) {
+                    btn.className = isActive
+                        ? "sub-ind-btn text-left px-3 py-2 rounded text-xs transition border border-transparent hover:bg-slate-800 text-slate-300 bg-slate-800/50 border-slate-700 text-blue-400 font-bold"
+                        : "sub-ind-btn text-left px-3 py-2 rounded text-xs transition border border-transparent hover:bg-slate-800 text-slate-400";
+                } else {
+                     btn.className = isActive
+                        ? "sub-ind-btn text-left px-3 py-2 rounded text-xs transition border border-transparent hover:bg-slate-100 text-slate-800 bg-blue-50 border-blue-200 text-blue-600 font-bold"
+                        : "sub-ind-btn text-left px-3 py-2 rounded text-xs transition border border-transparent hover:bg-slate-50 text-slate-500";
+                }
+            });
+        }
+
+        // --- 常规逻辑 ---
+
+        function toggleBidAskLines() {
+            showBidAskLines = document.getElementById('showBidAsk').checked;
+            if (!showBidAskLines) {
+                myChart.setOption({ series: [{ id: 'Price', markLine: { data: [] } }] });
+            }
+        }
+
+        function setPeriod(val) {
+            currentPeriod = val;
+            zoomState = { start: 80, end: 100 };
+            document.querySelectorAll('.period-btn').forEach(btn => {
+                if(btn.dataset.val === val) btn.classList.add('active-period'); // 临时标记，updateThemeClasses 会处理具体样式
+                else btn.classList.remove('active-period');
+            });
+            updateThemeClasses(isDarkMode); // 重新应用样式
             fetchData();
         }
 
         function applyCustomPeriod() {
             const val = document.getElementById('customPeriodInput').value;
             if(val) {
-                zoomState = { start: 80, end: 100 }; // 重置缩放
-                document.querySelectorAll('.period-btn').forEach(btn => btn.className = "period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-700 hover:bg-slate-800 hover:border-slate-600 text-slate-400");
+                zoomState = { start: 80, end: 100 };
+                document.querySelectorAll('.period-btn').forEach(btn => btn.classList.remove('active-period'));
+                updateThemeClasses(isDarkMode);
                 currentPeriod = val;
                 fetchData();
             }
@@ -216,14 +450,7 @@
 
         function setSubIndicator(val) {
             currentSubInd = val;
-            document.querySelectorAll('.sub-ind-btn').forEach(btn => {
-                btn.classList.remove('bg-slate-800/50', 'border-slate-700', 'text-blue-400', 'font-bold');
-                btn.classList.add('text-slate-400');
-                if(btn.dataset.val === val) {
-                    btn.classList.add('bg-slate-800/50', 'border-slate-700', 'text-blue-400', 'font-bold');
-                    btn.classList.remove('text-slate-400');
-                }
-            });
+            updateSubIndStyle(val);
             if(globalData) renderChart(globalData);
         }
 
@@ -255,12 +482,16 @@
         function fetchData() {
             const maP = document.getElementById('maPeriod').value;
             const emaP = document.getElementById('emaPeriod').value;
+            const bollP = document.getElementById('bollPeriod').value;
+            const bollS = document.getElementById('bollStd').value;
 
             if(!autoRefreshInterval) {
-                myChart.showLoading({ color: '#3b82f6', textColor: '#94a3b8', maskColor: 'rgba(15, 23, 42, 0.4)' });
+                const textColor = isDarkMode ? '#94a3b8' : '#334155';
+                const maskColor = isDarkMode ? 'rgba(15, 23, 42, 0.4)' : 'rgba(255, 255, 255, 0.4)';
+                myChart.showLoading({ color: '#3b82f6', textColor: textColor, maskColor: maskColor });
             }
 
-            fetch(`/api/kline?period=${currentPeriod}&ma=${maP}&ema=${emaP}`)
+            fetch(`/api/kline?period=${currentPeriod}&ma=${maP}&ema=${emaP}&bollP=${bollP}&bollS=${bollS}`)
                 .then(res => res.json())
                 .then(data => {
                     myChart.hideLoading();
@@ -273,7 +504,7 @@
                 })
                 .catch(err => {
                     myChart.hideLoading();
-                    console.error(err);
+                    console.error("Fetch Error:", err);
                 });
         }
 
@@ -284,20 +515,37 @@
 
             const maP = document.getElementById('maPeriod').value;
             const emaP = document.getElementById('emaPeriod').value;
+            const bollP = document.getElementById('bollPeriod').value;
+            const bollS = document.getElementById('bollStd').value;
 
+            // 配色方案
             const upColor = '#22c55e';
             const downColor = '#ef4444';
             const maColor = '#eab308';
             const emaColor = '#06b6d4';
             const bollColor = '#a855f7';
 
+            const bgColor = isDarkMode ? '#020617' : '#ffffff';
+            const gridLineColor = isDarkMode ? '#1e293b' : '#f1f5f9';
+            const axisLabelColor = isDarkMode ? '#64748b' : '#94a3b8';
+            const tooltipBg = isDarkMode ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.95)';
+            const tooltipBorder = isDarkMode ? '#334155' : '#e2e8f0';
+            const tooltipText = isDarkMode ? '#e2e8f0' : '#1e293b';
+
+            const ohlcData = data.values.map(item => [item[0], item[1], item[2], item[3]]);
+
             let seriesList = [
                 {
+                    id: 'Price', // 这里的 ID 非常重要，mousemove 用它来更新 markLine
                     name: 'Price',
                     type: 'candlestick',
-                    data: data.values.map(item => [item[0], item[1], item[2], item[3]]),
+                    data: ohlcData,
                     itemStyle: { color: upColor, color0: downColor, borderColor: upColor, borderColor0: downColor },
-                    z: 10
+                    z: 10,
+                    markLine: {
+                        symbol: 'none',
+                        data: [] // 初始化为空，防止报错
+                    }
                 }
             ];
 
@@ -309,8 +557,8 @@
             }
             if(showBOLL) {
                 seriesList.push(
-                    { name: 'BOLL UP', type: 'line', data: data.boll.up, smooth: true, showSymbol: false, lineStyle: { width: 1, opacity: 0.5, color: bollColor } },
-                    { name: 'BOLL LOW', type: 'line', data: data.boll.low, smooth: true, showSymbol: false, lineStyle: { width: 1, opacity: 0.5, color: bollColor } }
+                    { name: `BOLL UP (${bollP}, ${bollS})`, type: 'line', data: data.boll.up, smooth: true, showSymbol: false, lineStyle: { width: 1, opacity: 0.5, color: bollColor } },
+                    { name: `BOLL LOW (${bollP}, ${bollS})`, type: 'line', data: data.boll.low, smooth: true, showSymbol: false, lineStyle: { width: 1, opacity: 0.5, color: bollColor } }
                 );
             }
 
@@ -321,26 +569,28 @@
 
             let xAxisConfig = [
                 { type: 'category', data: data.categoryData, gridIndex: 0, axisLabel: { show: false }, axisTick: { show: false }, boundaryGap: false },
-                { type: 'category', data: data.categoryData, gridIndex: 1, axisLabel: { color: '#64748b', fontSize: 10 }, boundaryGap: false }
+                { type: 'category', data: data.categoryData, gridIndex: 1, axisLabel: { color: axisLabelColor, fontSize: 10 }, boundaryGap: false }
             ];
 
+            // Sub Indicators
             if(currentSubInd === 'vol') {
                 seriesList.push({
                     name: 'Volume',
                     type: 'bar',
                     xAxisIndex: 1,
                     yAxisIndex: 1,
-                    data: data.values.map((item, index) => {
-                        const isUp = item[1] >= item[0];
+                    data: data.values.map((item) => {
+                        const [open, close, , , volume] = item;
+                        const isUp = close >= open;
                         return {
-                            value: item[4],
+                            value: volume,
                             itemStyle: { color: isUp ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)' }
                         }
                     })
                 });
             } else if(currentSubInd === 'macd') {
                 seriesList.push(
-                    { name: 'DIF', type: 'line', xAxisIndex: 1, yAxisIndex: 1, data: data.macd.dif, showSymbol: false, lineStyle: { width: 1, color: '#fff' } },
+                    { name: 'DIF', type: 'line', xAxisIndex: 1, yAxisIndex: 1, data: data.macd.dif, showSymbol: false, lineStyle: { width: 1, color: isDarkMode ? '#fff' : '#334155' } },
                     { name: 'DEA', type: 'line', xAxisIndex: 1, yAxisIndex: 1, data: data.macd.dea, showSymbol: false, lineStyle: { width: 1, color: '#f59e0b' } },
                     {
                         name: 'MACD', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, data: data.macd.hist,
@@ -354,30 +604,26 @@
                     markLine: {
                         symbol: 'none',
                         data: [{ yAxis: 70 }, { yAxis: 30 }],
-                        lineStyle: { type: 'dashed', color: '#475569', width: 0.5 }
+                        lineStyle: { type: 'dashed', color: isDarkMode ? '#475569' : '#cbd5e1', width: 0.5 }
                     }
                 });
             }
 
             const option = {
-                backgroundColor: '#020617',
+                backgroundColor: bgColor,
                 tooltip: {
                     trigger: 'axis',
-                    axisPointer: { type: 'cross', label: { backgroundColor: '#334155' } },
-                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                    borderColor: '#334155',
-                    textStyle: { color: '#e2e8f0', fontSize: 12 },
+                    axisPointer: { type: 'cross', label: { backgroundColor: isDarkMode ? '#334155' : '#94a3b8' } },
+                    backgroundColor: tooltipBg,
+                    borderColor: tooltipBorder,
+                    textStyle: { color: tooltipText, fontSize: 12 },
                     formatter: function (params) {
                         if (params.length > 0) {
-                            const kline = params.find(p => p.seriesName === 'Price');
-                            if(kline) {
-                                const [o, c, l, h, v] = [kline.data[1], kline.data[2], kline.data[3], kline.data[4], 'N/A'];
-                                let vol = '--';
-                                if(currentSubInd === 'vol') {
-                                     const vItem = params.find(p => p.seriesName === 'Volume');
-                                     if(vItem) vol = vItem.value;
-                                }
+                            const timeIndex = data.categoryData.indexOf(params[0].axisValue);
 
+                            // 更新 Top Bar
+                            if (timeIndex !== -1 && globalData.values[timeIndex]) {
+                                const [o, c, l, h, vol] = globalData.values[timeIndex];
                                 document.getElementById('tick-open').innerText = o.toFixed(2);
                                 document.getElementById('tick-high').innerText = h.toFixed(2);
                                 document.getElementById('tick-low').innerText = l.toFixed(2);
@@ -385,13 +631,26 @@
                                 closeEl.innerText = c.toFixed(2);
                                 closeEl.className = c >= o ? 'text-green-500 font-bold' : 'text-red-500 font-bold';
                                 document.getElementById('tick-vol').innerText = vol;
+                            } else {
+                                ['tick-open', 'tick-high', 'tick-low', 'tick-close', 'tick-vol'].forEach(id => {
+                                    document.getElementById(id).innerText = '--';
+                                });
                             }
 
-                            let html = `<div class="font-mono text-xs">${params[0].axisValue}</div>`;
+                            let html = `<div class="font-mono text-xs font-bold mb-1 border-b pb-1 ${isDarkMode?'border-slate-700':'border-slate-200'}">${params[0].axisValue}</div>`;
+
+                            // 强制显示 O/H/L/C
+                            if (timeIndex !== -1 && globalData.values[timeIndex]) {
+                                const [o, c, l, h, v] = globalData.values[timeIndex];
+                                const labelColor = isDarkMode ? 'text-slate-400' : 'text-slate-500';
+                                html += `<div class="flex justify-between gap-4 text-xs"><span class="${labelColor}">O/H/L/C</span><span class="${c >= o ? 'text-green-500' : 'text-red-500'}">${o.toFixed(2)}/${h.toFixed(2)}/${l.toFixed(2)}/${c.toFixed(2)}</span></div>`;
+                                html += `<div class="flex justify-between gap-4 text-xs"><span class="${labelColor}">Volume</span><span class="text-yellow-500 font-bold">${v}</span></div>`;
+                            }
+
                             params.forEach(item => {
-                                if(item.seriesType !== 'candlestick' && item.value !== undefined && item.value !== null) {
+                                if(item.seriesType !== 'candlestick' && item.seriesName !== 'Volume' && item.value !== undefined && item.value !== null) {
                                     let val = typeof item.value === 'number' ? item.value.toFixed(2) : item.value;
-                                    html += `<div class="flex justify-between gap-4 text-xs"><span style="color:${item.color}">${item.seriesName}</span><span class="text-slate-200">${val}</span></div>`;
+                                    html += `<div class="flex justify-between gap-4 text-xs"><span style="color:${item.color}">${item.seriesName}</span><span>${val}</span></div>`;
                                 }
                             });
                             return html;
@@ -402,13 +661,12 @@
                 grid: gridConfig,
                 xAxis: xAxisConfig,
                 yAxis: [
-                    { scale: true, gridIndex: 0, splitLine: { lineStyle: { color: '#1e293b' } }, axisLabel: { color: '#64748b' } },
-                    { scale: true, gridIndex: 1, splitLine: { show: false }, axisLabel: { color: '#64748b', fontSize: 10 }, splitNumber: 3 }
+                    { scale: true, gridIndex: 0, splitLine: { lineStyle: { color: gridLineColor } }, axisLabel: { color: axisLabelColor } },
+                    { scale: true, gridIndex: 1, splitLine: { show: false }, axisLabel: { color: axisLabelColor, fontSize: 10 }, splitNumber: 3 }
                 ],
-                // --- 核心修改：使用 zoomState 填充 ---
                 dataZoom: [
                     { type: 'inside', xAxisIndex: [0, 1], start: zoomState.start, end: zoomState.end },
-                    { type: 'slider', xAxisIndex: [0, 1], top: '94%', height: 16, borderColor: '#1e293b', fillerColor: 'rgba(59, 130, 246, 0.1)', handleStyle: { color: '#3b82f6' }, textStyle: {color: '#64748b'}, start: zoomState.start, end: zoomState.end }
+                    { type: 'slider', xAxisIndex: [0, 1], top: '94%', height: 16, borderColor: gridLineColor, fillerColor: isDarkMode ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.2)', handleStyle: { color: '#3b82f6' }, textStyle: {color: axisLabelColor}, start: zoomState.start, end: zoomState.end }
                 ],
                 series: seriesList
             };
