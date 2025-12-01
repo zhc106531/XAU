@@ -4,30 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tick Analytics Pro</title>
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- ECharts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* 优化滚动条样式 */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #64748b; }
-
-        /* 深色模式下的玻璃效果 */
         .glass-sidebar { background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); }
-
         .custom-checkbox:checked { background-color: #3b82f6; border-color: #3b82f6; }
         .fade-in { animation: fadeIn 0.3s ease-in; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        /* 表格样式优化 */
+        .trade-table th { text-align: left; padding: 10px; font-size: 12px; font-weight: bold; color: #94a3b8; border-bottom: 1px solid #334155; }
+        .trade-table td { padding: 10px; font-size: 13px; border-bottom: 1px solid rgba(148, 163, 184, 0.05); }
+        .trade-table tr:last-child td { border-bottom: none; }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-300 font-sans h-screen flex flex-col overflow-hidden selection:bg-blue-500 selection:text-white transition-colors duration-300">
 
-    <!-- 顶部数据看板 -->
     <header id="main-header" class="bg-slate-900 border-b border-slate-800 h-12 flex items-center px-4 justify-between flex-shrink-0 z-20 shadow-md transition-colors duration-300">
         <div class="flex items-center gap-6 text-xs font-mono">
             <div class="flex items-center gap-2">
@@ -43,6 +39,11 @@
             </div>
         </div>
         <div class="flex items-center gap-3">
+            <!-- 回测按钮 -->
+            <button onclick="runBacktest()" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded transition font-bold border border-indigo-500 shadow-lg shadow-indigo-900/50">
+                <i class="fa-solid fa-flask me-1"></i> 回测策略
+            </button>
+
             <div class="flex items-center gap-2 bg-slate-800 px-2 py-1 rounded border border-slate-700 theme-status-box transition-colors duration-300">
                 <div class="w-2 h-2 rounded-full bg-slate-500" id="live-indicator"></div>
                 <label class="text-xs cursor-pointer select-none flex items-center gap-2">
@@ -54,9 +55,8 @@
     </header>
 
     <div class="flex flex-1 overflow-hidden">
-        <!-- 左侧控制面板 -->
         <aside id="main-sidebar" class="w-64 glass-sidebar border-r border-slate-800 flex flex-col p-4 gap-5 overflow-y-auto z-10 transition-colors duration-300">
-
+            <!-- Timeframe -->
             <div class="space-y-2">
                 <div class="section-title text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Timeframe</div>
                 <div class="grid grid-cols-2 gap-2">
@@ -75,7 +75,6 @@
 
             <div class="space-y-3">
                 <div class="section-title text-xs font-bold text-slate-500 uppercase tracking-widest">Main Indicators</div>
-                <!-- MA -->
                 <div class="flex items-center justify-between group">
                     <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-300 hover:text-white transition theme-text-main">
                         <input type="checkbox" id="showMA" checked onchange="updateChartVisibility()" class="rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-0 w-3.5 h-3.5 theme-checkbox">
@@ -83,7 +82,6 @@
                     </label>
                     <input type="number" id="maPeriod" value="10" class="theme-input-line w-12 bg-transparent border-b border-slate-700 text-right text-xs focus:border-blue-500 outline-none text-yellow-500 font-mono" onchange="fetchData()">
                 </div>
-                <!-- EMA -->
                 <div class="flex items-center justify-between group">
                     <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-300 hover:text-white transition theme-text-main">
                         <input type="checkbox" id="showEMA" checked onchange="updateChartVisibility()" class="rounded border-slate-600 bg-slate-800 text-cyan-500 focus:ring-0 w-3.5 h-3.5 theme-checkbox">
@@ -91,7 +89,6 @@
                     </label>
                     <input type="number" id="emaPeriod" value="20" class="theme-input-line w-12 bg-transparent border-b border-slate-700 text-right text-xs focus:border-cyan-500 outline-none text-cyan-400 font-mono" onchange="fetchData()">
                 </div>
-                <!-- BOLL -->
                 <div class="flex items-center justify-between group">
                     <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-300 hover:text-white transition theme-text-main">
                         <input type="checkbox" id="showBOLL" onchange="updateChartVisibility()" class="rounded border-slate-600 bg-slate-800 text-purple-500 focus:ring-0 w-3.5 h-3.5 theme-checkbox">
@@ -122,22 +119,30 @@
                 </div>
             </div>
 
-            <!-- 底部按钮区 -->
+            <!-- Bottom -->
             <div class="mt-auto relative">
-                <!-- 设置面板 -->
                 <div id="settingsPanel" class="hidden absolute bottom-12 left-0 w-full bg-slate-800 border border-slate-700 rounded p-3 space-y-3 fade-in shadow-xl z-30 theme-panel">
                     <div class="section-title text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Theme</div>
                     <div class="flex items-center justify-between theme-text-main">
                         <span class="text-sm">Light/Dark Mode</span>
                         <button onclick="toggleTheme()" id="themeToggle" class="px-2 py-0.5 rounded text-xs transition-colors duration-200 font-mono bg-blue-600 text-white border border-blue-600">Dark</button>
                     </div>
-
                     <div class="section-title text-xs font-bold text-slate-500 uppercase tracking-widest pt-2 mb-1 border-t border-slate-700 theme-divider">Visuals</div>
-                    <div class="flex items-center justify-between theme-text-main">
-                        <label class="flex items-center gap-2 cursor-pointer text-sm">
-                            <input type="checkbox" id="showBidAsk" onchange="toggleBidAskLines()" class="rounded border-slate-600 bg-slate-900 text-blue-500 focus:ring-0 w-3.5 h-3.5 theme-checkbox">
-                            <span>Bid/Ask 20p Lines</span>
-                        </label>
+                    <div class="space-y-2">
+                        <!-- Bid/Ask Lines -->
+                        <div class="flex items-center justify-between theme-text-main">
+                            <label class="flex items-center gap-2 cursor-pointer text-sm">
+                                <input type="checkbox" id="showBidAsk" onchange="toggleBidAskLines()" class="rounded border-slate-600 bg-slate-900 text-blue-500 focus:ring-0 w-3.5 h-3.5 theme-checkbox">
+                                <span>Bid/Ask 20p Lines</span>
+                            </label>
+                        </div>
+                        <!-- Trade Lines (新增) -->
+                        <div class="flex items-center justify-between theme-text-main">
+                            <label class="flex items-center gap-2 cursor-pointer text-sm">
+                                <input type="checkbox" id="showTradeLines" onchange="updateChartVisibility()" checked class="rounded border-slate-600 bg-slate-900 text-blue-500 focus:ring-0 w-3.5 h-3.5 theme-checkbox">
+                                <span>Show Trade Lines</span>
+                            </label>
+                        </div>
                     </div>
                 </div>
 
@@ -152,9 +157,52 @@
             </div>
         </aside>
 
-        <!-- 主图表区域 -->
+        <!-- Main Chart -->
         <main id="chart-container" class="flex-1 bg-slate-950 relative flex flex-col transition-colors duration-300">
             <div id="main-chart" class="w-full h-full"></div>
+
+            <!-- 回测结果模态框 -->
+            <div id="backtestModal" class="hidden absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm fade-in">
+                <div class="bg-slate-900 border border-slate-700 rounded-lg shadow-2xl w-3/4 max-w-3xl max-h-[85%] flex flex-col">
+                    <div class="flex justify-between items-center p-4 border-b border-slate-700 bg-slate-800 rounded-t-lg">
+                        <h3 class="text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-flask text-indigo-500"></i> 回测报告 (Backtest Report)</h3>
+                        <button onclick="closeBacktestModal()" class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-times text-lg"></i></button>
+                    </div>
+
+                    <div class="p-4 grid grid-cols-3 gap-4 border-b border-slate-700 bg-slate-800/50">
+                        <div class="bg-slate-800 p-3 rounded text-center border border-slate-700">
+                            <div class="text-xs text-slate-500 uppercase tracking-wider font-bold">总交易数</div>
+                            <div id="bt-total" class="text-xl font-bold text-white mt-1">--</div>
+                        </div>
+                        <div class="bg-slate-800 p-3 rounded text-center border border-slate-700">
+                            <div class="text-xs text-slate-500 uppercase tracking-wider font-bold">胜率</div>
+                            <div id="bt-winrate" class="text-xl font-bold text-blue-400 mt-1">--%</div>
+                        </div>
+                        <div class="bg-slate-800 p-3 rounded text-center border border-slate-700">
+                            <div class="text-xs text-slate-500 uppercase tracking-wider font-bold">总盈亏</div>
+                            <div id="bt-pnl" class="text-xl font-bold text-green-400 mt-1">--</div>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto p-0">
+                        <table class="w-full trade-table text-left border-collapse">
+                            <thead class="bg-slate-800 sticky top-0 z-10 shadow-sm">
+                                <tr>
+                                    <th>方向</th>
+                                    <th>策略类型</th>
+                                    <th>开仓</th>
+                                    <th>平仓</th>
+                                    <th>盈亏</th>
+                                    <th>平仓原因</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bt-list" class="divide-y divide-slate-700/50 text-slate-300">
+                                <!-- JS填充 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
 
@@ -164,14 +212,18 @@
         let currentSubInd = 'vol';
         let autoRefreshInterval = null;
         let globalData = null;
+        let globalBacktestReport = null;
+        let tradeMarkLineData = []; // 存储交易连线数据
         let showBidAskLines = false;
         const BID_ASK_SPREAD = 0.20;
         let zoomState = { start: 80, end: 100 };
-        let isDarkMode = true; // 跟踪当前主题状态
+        let isDarkMode = true;
+        let rafId = null;
+        let lastMouseEvent = null;
 
         window.addEventListener('resize', () => myChart.resize());
 
-        // 缩放记忆
+        // Zoom Memory
         myChart.on('datazoom', function(evt) {
             const opt = myChart.getOption();
             if(opt.dataZoom && opt.dataZoom.length > 0) {
@@ -180,44 +232,28 @@
             }
         });
 
-        // --- 性能优化：使用 requestAnimationFrame 处理鼠标移动 ---
-        let rafId = null; // 用于存储 RAF ID
-        let lastMouseEvent = null; // 存储最新的鼠标事件
-
+        // Mouse Move Performance Optimized (Updated to support trade lines)
         myChart.getDom().addEventListener('mousemove', function(e) {
             if (!showBidAskLines || !globalData) return;
-
-            // 保存最新的事件对象
             lastMouseEvent = e;
-
-            // 如果已经有一个任务在等待执行，则不重复请求
             if (rafId) return;
-
             rafId = requestAnimationFrame(() => {
                 handleMouseMove(lastMouseEvent);
-                rafId = null; // 任务执行完毕，重置 ID
+                rafId = null;
             });
         });
 
         function handleMouseMove(e) {
-             // 再次检查开关，以防在 RAF 等待期间被关闭
             if (!showBidAskLines) return;
-
-            // 获取 ECharts 实例坐标转换
             const rect = myChart.getDom().getBoundingClientRect();
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
 
             let price = null;
             try {
-                // seriesIndex: 0 (主图 K 线)
                 const point = myChart.convertFromPixel({ seriesIndex: 0 }, [x, y]);
-                if (point) {
-                    price = point[1];
-                }
-            } catch (err) {
-                // 忽略转换错误
-            }
+                if (point) price = point[1];
+            } catch (err) {}
 
             if (price === null || isNaN(price)) return;
 
@@ -229,92 +265,149 @@
             const textColor = isDarkMode ? '#e2e8f0' : '#1e293b';
             const bgColor = isDarkMode ? 'rgba(15, 23, 42, 0.8)' : 'rgba(255, 255, 255, 0.9)';
 
-            // 使用 setOption 更新
+            // 合并静态交易线和动态鼠标线
+            const dynamicLines = [
+                { yAxis: askPrice, name: 'Ask' },
+                { yAxis: bidPrice, name: 'Bid' }
+            ];
+
+            // 如果交易线开启，则合并
+            const combinedData = tradeMarkLineData.length > 0 ? [...tradeMarkLineData, ...dynamicLines] : dynamicLines;
+
             myChart.setOption({
                 series: [{
                     id: 'Price',
                     markLine: {
                         silent: true,
                         symbol: 'none',
-                        animation: false, // 关键：禁用动画，防止延迟
-                        lineStyle: {
-                            type: 'solid',
-                            color: lineColor,
-                            width: 1,
-                            opacity: 0.8
-                        },
+                        animation: false,
+                        lineStyle: { type: 'solid', color: lineColor, width: 1, opacity: 0.8 },
                         label: {
                             show: true,
                             position: 'end',
-                            formatter: (params) => `${params.name}: ${params.value.toFixed(2)}`,
+                            formatter: (params) => {
+                                // 区分是否是 Ask/Bid 线
+                                if(params.name === 'Ask' || params.name === 'Bid') {
+                                    return `${params.name}: ${params.value.toFixed(2)}`;
+                                }
+                                return ''; // 交易连线不显示标签
+                            },
                             color: textColor,
                             backgroundColor: bgColor,
                             padding: [2, 4],
                             borderRadius: 2,
                             fontSize: 10
                         },
-                        data: [
-                            { yAxis: askPrice, name: 'Ask' },
-                            { yAxis: bidPrice, name: 'Bid' }
-                        ]
+                        data: combinedData
                     }
                 }]
             });
         }
 
-        // 鼠标移出时清除线
         myChart.getDom().addEventListener('mouseout', function() {
             if (showBidAskLines) {
+                // 恢复为仅显示交易连线（如果有）
                 myChart.setOption({
                     series: [{
                         id: 'Price',
-                        markLine: { data: [] }
+                        markLine: { data: tradeMarkLineData }
                     }]
                 });
             }
         });
 
-
-        // --- 键盘滚动 ---
         document.addEventListener('keydown', function(e) {
             if (e.target.tagName === 'INPUT') return;
             if (!globalData || !globalData.categoryData) return;
-
             let direction = 0;
             if (e.key === 'ArrowRight') direction = 1;
             if (e.key === 'ArrowLeft') direction = -1;
-
             if (direction === 0) return;
 
             const totalBars = globalData.categoryData.length;
             if (totalBars === 0) return;
-
             const step = (100 / totalBars) * direction * 3;
             let newStart = zoomState.start + step;
             let newEnd = zoomState.end + step;
             const range = zoomState.end - zoomState.start;
-
             if (newEnd > 100) { newEnd = 100; newStart = 100 - range; }
             else if (newStart < 0) { newStart = 0; newEnd = range; }
 
-            myChart.dispatchAction({
-                type: 'dataZoom',
-                dataZoomIndex: [0, 1],
-                start: newStart,
-                end: newEnd
-            });
+            myChart.dispatchAction({ type: 'dataZoom', dataZoomIndex: [0, 1], start: newStart, end: newEnd });
         });
 
-        // --- 主题切换 (彻底修复) ---
-        function toggleSettingsPanel() {
-            document.getElementById('settingsPanel').classList.toggle('hidden');
+        // --- Backtest Logic ---
+        function runBacktest() {
+            const maP = document.getElementById('maPeriod').value;
+            const emaP = document.getElementById('emaPeriod').value;
+            const bollP = document.getElementById('bollPeriod').value;
+            const bollS = document.getElementById('bollStd').value;
+
+            const btn = document.querySelector('button[onclick="runBacktest()"]');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 计算中...';
+            btn.disabled = true;
+
+            fetch(`/api/run_backtest?period=${currentPeriod}&ma=${maP}&ema=${emaP}&bollP=${bollP}&bollS=${bollS}`)
+                .then(res => res.json())
+                .then(data => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+
+                    if(data.status === 'success') {
+                        globalBacktestReport = data.report;
+                        renderChart(globalData); // 刷新图表显示标记和连线
+                        showBacktestResults(data.report);
+                    } else {
+                        alert("回测失败: " + data.message);
+                    }
+                })
+                .catch(err => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    console.error(err);
+                    alert("网络错误");
+                });
         }
+
+        function showBacktestResults(report) {
+            document.getElementById('bt-total').innerText = report.total_trades;
+            document.getElementById('bt-winrate').innerText = report.win_rate + '%';
+            document.getElementById('bt-pnl').innerText = report.total_pnl;
+            document.getElementById('bt-pnl').className = report.total_pnl >= 0 ? "text-xl font-bold text-green-400 mt-1" : "text-xl font-bold text-red-400 mt-1";
+
+            const list = document.getElementById('bt-list');
+            list.innerHTML = '';
+
+            const typeMap = { 'Long': '做多 (Long)', 'Short': '做空 (Short)' };
+            const strategyMap = { 'trend': '趋势跟随', 'oscillation': '震荡回归' };
+            const reasonMap = { 'Time Stop (MA Return)': '超时平仓', 'Oscillation Profit': '震荡止盈', 'Trend Target': '趋势止盈' };
+
+            report.trades.forEach(t => {
+                const pnlColor = t.pnl >= 0 ? 'text-green-400' : 'text-red-400';
+                const typeColor = t.type === 'Long' ? 'text-blue-400' : 'text-orange-400';
+                const row = `
+                    <tr class="hover:bg-slate-700/50 transition border-b border-slate-700/50 last:border-0">
+                        <td class="${typeColor} font-bold">${typeMap[t.type] || t.type}</td>
+                        <td class="text-slate-300">${strategyMap[t.strategy] || t.strategy}</td>
+                        <td><div class="font-mono">${t.entry_price}</div><div class="text-[10px] text-slate-500">${t.entry_time.split(' ')[1]}</div></td>
+                        <td><div class="font-mono">${t.exit_price}</div><div class="text-[10px] text-slate-500">${t.exit_time.split(' ')[1]}</div></td>
+                        <td class="${pnlColor} font-bold font-mono">${t.pnl > 0 ? '+' : ''}${t.pnl}</td>
+                        <td class="text-slate-400 text-xs">${reasonMap[t.reason] || t.reason}</td>
+                    </tr>`;
+                list.innerHTML += row;
+            });
+            document.getElementById('backtestModal').classList.remove('hidden');
+        }
+
+        function closeBacktestModal() { document.getElementById('backtestModal').classList.add('hidden'); }
+
+        // --- Theme & Others ---
+        function toggleSettingsPanel() { document.getElementById('settingsPanel').classList.toggle('hidden'); }
 
         function toggleTheme() {
             isDarkMode = !isDarkMode;
             const btn = document.getElementById('themeToggle');
-
-            // 1. 全局背景和文字
             const body = document.body;
             const header = document.getElementById('main-header');
             const sidebar = document.getElementById('main-sidebar');
@@ -322,83 +415,64 @@
             const appTitle = document.getElementById('app-title');
 
             if (isDarkMode) {
-                // 切换到深色
                 body.className = "bg-slate-950 text-slate-300 font-sans h-screen flex flex-col overflow-hidden selection:bg-blue-500 selection:text-white transition-colors duration-300";
                 header.className = "bg-slate-900 border-b border-slate-800 h-12 flex items-center px-4 justify-between flex-shrink-0 z-20 shadow-md transition-colors duration-300";
                 sidebar.className = "w-64 glass-sidebar border-r border-slate-800 flex flex-col p-4 gap-5 overflow-y-auto z-10 transition-colors duration-300";
                 chartContainer.className = "flex-1 bg-slate-950 relative flex flex-col transition-colors duration-300";
                 appTitle.className = "font-bold text-slate-100 tracking-wider";
-
                 btn.innerText = "Dark";
                 btn.className = "px-2 py-0.5 rounded text-xs transition-colors duration-200 font-mono bg-blue-600 text-white border border-blue-600";
-
                 updateThemeClasses(true);
             } else {
-                // 切换到浅色
                 body.className = "bg-slate-50 text-slate-800 font-sans h-screen flex flex-col overflow-hidden selection:bg-blue-200 selection:text-slate-900 transition-colors duration-300";
                 header.className = "bg-white border-b border-slate-200 h-12 flex items-center px-4 justify-between flex-shrink-0 z-20 shadow-sm transition-colors duration-300";
-                sidebar.className = "w-64 bg-white border-r border-slate-200 flex flex-col p-4 gap-5 overflow-y-auto z-10 transition-colors duration-300"; // 移除 glass-sidebar
+                sidebar.className = "w-64 bg-white border-r border-slate-200 flex flex-col p-4 gap-5 overflow-y-auto z-10 transition-colors duration-300";
                 chartContainer.className = "flex-1 bg-white relative flex flex-col transition-colors duration-300";
                 appTitle.className = "font-bold text-slate-800 tracking-wider";
-
                 btn.innerText = "Light";
                 btn.className = "px-2 py-0.5 rounded text-xs transition-colors duration-200 font-mono bg-slate-200 text-slate-600 border border-slate-300";
-
                 updateThemeClasses(false);
             }
-
-            // 刷新图表以应用新配色
             if(globalData) renderChart(globalData);
         }
 
-        // 辅助函数：更新具体组件的类名
         function updateThemeClasses(dark) {
-            // 文字颜色 - 次要信息
             document.querySelectorAll('.info-label').forEach(el => el.className = dark ? "info-label text-slate-400" : "info-label text-slate-500");
             document.querySelectorAll('.section-title').forEach(el => el.className = dark ? "section-title text-xs font-bold text-slate-500 uppercase tracking-widest mb-2" : "section-title text-xs font-bold text-slate-400 uppercase tracking-widest mb-2");
             document.querySelectorAll('.theme-text-main').forEach(el => el.className = dark ? "flex items-center gap-2 cursor-pointer text-sm text-slate-300 hover:text-white transition theme-text-main" : "flex items-center gap-2 cursor-pointer text-sm text-slate-700 hover:text-blue-600 transition theme-text-main");
             document.querySelectorAll('.theme-text-sub').forEach(el => el.className = dark ? "text-xs text-slate-500 theme-text-sub" : "text-xs text-slate-400 theme-text-sub");
 
-            // 输入框和按钮
             document.querySelectorAll('.period-btn').forEach(btn => {
-                if(!btn.classList.contains('active-period')) {
+                const isActive = btn.classList.contains('active-period');
+                if(!isActive) {
                     btn.className = dark
                         ? "period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-700 hover:bg-slate-800 text-slate-400"
                         : "period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-200 hover:bg-slate-100 text-slate-600";
                 } else {
-                     // 激活状态保持蓝色，但在浅色下调整阴影
                      btn.className = dark
                         ? "period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-700 hover:bg-slate-800 active-period bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-900/50"
                         : "period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-200 hover:bg-slate-100 active-period bg-blue-500 border-blue-400 text-white shadow-md shadow-blue-200";
                 }
             });
 
-            const inputClass = dark ? "theme-input w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition text-slate-300 placeholder-slate-600" : "theme-input w-full bg-slate-50 border border-slate-300 rounded px-3 py-1.5 text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition text-slate-800 placeholder-slate-400";
-            document.getElementById('customPeriodInput').className = inputClass;
+            document.getElementById('customPeriodInput').className = dark ? "theme-input w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition text-slate-300 placeholder-slate-600" : "theme-input w-full bg-slate-50 border border-slate-300 rounded px-3 py-1.5 text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition text-slate-800 placeholder-slate-400";
+            document.querySelector('.theme-input-btn').className = dark ? "theme-input-btn absolute right-1 top-1 bottom-1 px-2 text-[10px] bg-slate-800 hover:bg-slate-700 rounded text-slate-300 transition" : "theme-input-btn absolute right-1 top-1 bottom-1 px-2 text-[10px] bg-slate-200 hover:bg-slate-300 rounded text-slate-600 transition";
 
-            const inputBtnClass = dark ? "theme-input-btn absolute right-1 top-1 bottom-1 px-2 text-[10px] bg-slate-800 hover:bg-slate-700 rounded text-slate-300 transition" : "theme-input-btn absolute right-1 top-1 bottom-1 px-2 text-[10px] bg-slate-200 hover:bg-slate-300 rounded text-slate-600 transition";
-            document.querySelector('.theme-input-btn').className = inputBtnClass;
-
-            // 分割线
             document.querySelectorAll('.theme-divider').forEach(el => {
                 if(el.tagName === 'HR') el.className = dark ? "theme-divider border-slate-800" : "theme-divider border-slate-200";
                 else if(el.tagName === 'DIV') el.className = dark ? "section-title text-xs font-bold text-slate-500 uppercase tracking-widest pt-2 mb-1 border-t border-slate-700 theme-divider" : "section-title text-xs font-bold text-slate-400 uppercase tracking-widest pt-2 mb-1 border-t border-slate-200 theme-divider";
             });
 
-            // 底部操作按钮
             document.querySelectorAll('.action-btn').forEach(btn => {
-                btn.className = dark
-                    ? "action-btn flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 rounded border border-slate-700 transition flex items-center justify-center gap-2 text-xs font-bold" + (btn.id === 'settingsButton' ? " w-10" : "")
-                    : "action-btn flex-1 bg-white hover:bg-slate-50 text-slate-700 py-2 rounded border border-slate-200 transition flex items-center justify-center gap-2 text-xs font-bold" + (btn.id === 'settingsButton' ? " w-10" : "");
+                let base = dark
+                    ? "action-btn bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 rounded border border-slate-700 transition flex items-center justify-center gap-2 text-xs font-bold"
+                    : "action-btn bg-white hover:bg-slate-50 text-slate-700 py-2 rounded border border-slate-200 transition flex items-center justify-center gap-2 text-xs font-bold";
+                if(btn.id === 'settingsButton') btn.className = base + " w-10";
+                else btn.className = base + " flex-1";
             });
 
-            // Live Status Box
             document.querySelector('.theme-status-box').className = dark ? "flex items-center gap-2 bg-slate-800 px-2 py-1 rounded border border-slate-700 theme-status-box transition-colors duration-300" : "flex items-center gap-2 bg-white px-2 py-1 rounded border border-slate-200 theme-status-box transition-colors duration-300";
-
-            // 设置面板
             document.getElementById('settingsPanel').className = dark ? "hidden absolute bottom-12 left-0 w-full bg-slate-800 border border-slate-700 rounded p-3 space-y-3 fade-in shadow-xl z-30 theme-panel" : "hidden absolute bottom-12 left-0 w-full bg-white border border-slate-200 rounded p-3 space-y-3 fade-in shadow-xl z-30 theme-panel";
-
-            // Sub Indicators
             updateSubIndStyle(currentSubInd);
         }
 
@@ -417,12 +491,11 @@
             });
         }
 
-        // --- 常规逻辑 ---
-
         function toggleBidAskLines() {
             showBidAskLines = document.getElementById('showBidAsk').checked;
             if (!showBidAskLines) {
-                myChart.setOption({ series: [{ id: 'Price', markLine: { data: [] } }] });
+                // 关闭 Bid/Ask 时，如果有交易连线，恢复显示交易连线
+                myChart.setOption({ series: [{ id: 'Price', markLine: { data: tradeMarkLineData } }] });
             }
         }
 
@@ -430,10 +503,10 @@
             currentPeriod = val;
             zoomState = { start: 80, end: 100 };
             document.querySelectorAll('.period-btn').forEach(btn => {
-                if(btn.dataset.val === val) btn.classList.add('active-period'); // 临时标记，updateThemeClasses 会处理具体样式
+                if(btn.dataset.val === val) btn.classList.add('active-period');
                 else btn.classList.remove('active-period');
             });
-            updateThemeClasses(isDarkMode); // 重新应用样式
+            updateThemeClasses(isDarkMode);
             fetchData();
         }
 
@@ -458,7 +531,6 @@
             const checkbox = document.getElementById('autoRefresh');
             const indicator = document.getElementById('live-indicator');
             const text = document.getElementById('autoRefreshText');
-
             if(checkbox.checked) {
                 indicator.classList.remove('bg-slate-500');
                 indicator.classList.add('bg-green-500', 'animate-pulse');
@@ -475,11 +547,13 @@
             }
         }
 
-        function updateChartVisibility() {
-            if(globalData) renderChart(globalData);
-        }
+        function updateChartVisibility() { if(globalData) renderChart(globalData); }
 
         function fetchData() {
+            // 清除旧的回测标记
+            globalBacktestReport = null;
+            tradeMarkLineData = [];
+
             const maP = document.getElementById('maPeriod').value;
             const emaP = document.getElementById('emaPeriod').value;
             const bollP = document.getElementById('bollPeriod').value;
@@ -497,7 +571,12 @@
                     myChart.hideLoading();
                     if(data.status === 'success') {
                         globalData = data;
-                        renderChart(data);
+                        try {
+                            renderChart(data);
+                        } catch (renderError) {
+                            console.error("Render Error:", renderError);
+                            alert("图表渲染失败，请查看控制台。");
+                        }
                     } else {
                         console.error(data.message);
                     }
@@ -512,13 +591,12 @@
             const showMA = document.getElementById('showMA').checked;
             const showEMA = document.getElementById('showEMA').checked;
             const showBOLL = document.getElementById('showBOLL').checked;
-
+            const showTradeLines = document.getElementById('showTradeLines').checked; // 获取开关状态
             const maP = document.getElementById('maPeriod').value;
             const emaP = document.getElementById('emaPeriod').value;
             const bollP = document.getElementById('bollPeriod').value;
             const bollS = document.getElementById('bollStd').value;
 
-            // 配色方案
             const upColor = '#22c55e';
             const downColor = '#ef4444';
             const maColor = '#eab308';
@@ -534,45 +612,87 @@
 
             const ohlcData = data.values.map(item => [item[0], item[1], item[2], item[3]]);
 
+            // --- 构建回测标记数据 & 连线数据 ---
+            let markPointData = [];
+            tradeMarkLineData = []; // 重置全局连线数据
+
+            if (globalBacktestReport && globalBacktestReport.trades) {
+                globalBacktestReport.trades.forEach(trade => {
+                    const isWin = trade.pnl >= 0;
+                    const lineColor = isWin ? '#22c55e' : '#ef4444'; // 赢绿输红
+
+                    // 1. Entry Marker
+                    markPointData.push({
+                        name: 'Entry',
+                        coord: [trade.entry_time, trade.entry_price],
+                        symbol: 'arrow',
+                        symbolRotate: trade.type === 'Long' ? 0 : 180,
+                        symbolSize: 10,
+                        symbolOffset: [0, trade.type === 'Long' ? 10 : -10],
+                        itemStyle: { color: trade.type === 'Long' ? '#3b82f6' : '#f97316' },
+                        label: { show: false }
+                    });
+
+                    // 2. Exit Marker
+                    markPointData.push({
+                        name: 'Exit',
+                        coord: [trade.exit_time, trade.exit_price],
+                        symbol: 'circle',
+                        symbolSize: 6,
+                        itemStyle: { color: lineColor },
+                        label: { show: false }
+                    });
+
+                    // 3. Trade Connection Line (MarkLine)
+                    if (showTradeLines) {
+                        tradeMarkLineData.push([
+                            { coord: [trade.entry_time, trade.entry_price], lineStyle: { type: 'dashed', color: lineColor, width: 1, opacity: 0.6 } },
+                            { coord: [trade.exit_time, trade.exit_price] }
+                        ]);
+                    }
+                });
+            }
+
             let seriesList = [
                 {
-                    id: 'Price', // 这里的 ID 非常重要，mousemove 用它来更新 markLine
+                    id: 'Price',
                     name: 'Price',
                     type: 'candlestick',
                     data: ohlcData,
                     itemStyle: { color: upColor, color0: downColor, borderColor: upColor, borderColor0: downColor },
                     z: 10,
+                    // 初始加载 tradeMarkLineData
                     markLine: {
                         symbol: 'none',
-                        data: [] // 初始化为空，防止报错
+                        data: tradeMarkLineData,
+                        silent: true // 静态线不需要交互
+                    },
+                    markPoint: {
+                        symbolSize: 10,
+                        label: { show: false },
+                        data: markPointData,
+                        tooltip: {
+                            formatter: function(param) {
+                                return `${param.name}<br>${param.data.coord[1].toFixed(2)}`;
+                            }
+                        }
                     }
                 }
             ];
 
-            if(showMA) {
-                seriesList.push({ name: `MA${maP}`, type: 'line', data: data.maData, smooth: true, showSymbol: false, lineStyle: { width: 1, color: maColor } });
-            }
-            if(showEMA) {
-                seriesList.push({ name: `EMA${emaP}`, type: 'line', data: data.emaData, smooth: true, showSymbol: false, lineStyle: { width: 1, color: emaColor } });
-            }
-            if(showBOLL) {
-                seriesList.push(
-                    { name: `BOLL UP (${bollP}, ${bollS})`, type: 'line', data: data.boll.up, smooth: true, showSymbol: false, lineStyle: { width: 1, opacity: 0.5, color: bollColor } },
-                    { name: `BOLL LOW (${bollP}, ${bollS})`, type: 'line', data: data.boll.low, smooth: true, showSymbol: false, lineStyle: { width: 1, opacity: 0.5, color: bollColor } }
-                );
-            }
+            if(showMA) seriesList.push({ name: `MA${maP}`, type: 'line', data: data.maData, smooth: true, showSymbol: false, lineStyle: { width: 1, color: maColor } });
+            if(showEMA) seriesList.push({ name: `EMA${emaP}`, type: 'line', data: data.emaData, smooth: true, showSymbol: false, lineStyle: { width: 1, color: emaColor } });
+            if(showBOLL) seriesList.push(
+                { name: `BOLL UP (${bollP}, ${bollS})`, type: 'line', data: data.boll.up, smooth: true, showSymbol: false, lineStyle: { width: 1, opacity: 0.5, color: bollColor } },
+                { name: `BOLL LOW (${bollP}, ${bollS})`, type: 'line', data: data.boll.low, smooth: true, showSymbol: false, lineStyle: { width: 1, opacity: 0.5, color: bollColor } }
+            );
 
-            let gridConfig = [
-                { left: '50', right: '20', top: '20', height: '60%' },
-                { left: '50', right: '20', top: '75%', height: '15%' }
-            ];
-
+            let gridConfig = [{ left: '50', right: '20', top: '20', height: '60%' }, { left: '50', right: '20', top: '75%', height: '15%' }];
             let xAxisConfig = [
                 { type: 'category', data: data.categoryData, gridIndex: 0, axisLabel: { show: false }, axisTick: { show: false }, boundaryGap: false },
                 { type: 'category', data: data.categoryData, gridIndex: 1, axisLabel: { color: axisLabelColor, fontSize: 10 }, boundaryGap: false }
             ];
 
-            // Sub Indicators
             if(currentSubInd === 'vol') {
                 seriesList.push({
                     name: 'Volume',
@@ -581,31 +701,19 @@
                     yAxisIndex: 1,
                     data: data.values.map((item) => {
                         const [open, close, , , volume] = item;
-                        const isUp = close >= open;
-                        return {
-                            value: volume,
-                            itemStyle: { color: isUp ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)' }
-                        }
+                        return { value: volume, itemStyle: { color: close >= open ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)' } }
                     })
                 });
             } else if(currentSubInd === 'macd') {
                 seriesList.push(
                     { name: 'DIF', type: 'line', xAxisIndex: 1, yAxisIndex: 1, data: data.macd.dif, showSymbol: false, lineStyle: { width: 1, color: isDarkMode ? '#fff' : '#334155' } },
                     { name: 'DEA', type: 'line', xAxisIndex: 1, yAxisIndex: 1, data: data.macd.dea, showSymbol: false, lineStyle: { width: 1, color: '#f59e0b' } },
-                    {
-                        name: 'MACD', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, data: data.macd.hist,
-                        itemStyle: { color: (params) => params.value > 0 ? '#22c55e' : '#ef4444' }
-                    }
+                    { name: 'MACD', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, data: data.macd.hist, itemStyle: { color: (params) => params.value > 0 ? '#22c55e' : '#ef4444' } }
                 );
             } else if(currentSubInd === 'rsi') {
                 seriesList.push({
-                    name: 'RSI', type: 'line', xAxisIndex: 1, yAxisIndex: 1, data: data.rsi, showSymbol: false,
-                    lineStyle: { width: 1, color: '#d946ef' },
-                    markLine: {
-                        symbol: 'none',
-                        data: [{ yAxis: 70 }, { yAxis: 30 }],
-                        lineStyle: { type: 'dashed', color: isDarkMode ? '#475569' : '#cbd5e1', width: 0.5 }
-                    }
+                    name: 'RSI', type: 'line', xAxisIndex: 1, yAxisIndex: 1, data: data.rsi, showSymbol: false, lineStyle: { width: 1, color: '#d946ef' },
+                    markLine: { symbol: 'none', data: [{ yAxis: 70 }, { yAxis: 30 }], lineStyle: { type: 'dashed', color: isDarkMode ? '#475569' : '#cbd5e1', width: 0.5 } }
                 });
             }
 
@@ -620,8 +728,6 @@
                     formatter: function (params) {
                         if (params.length > 0) {
                             const timeIndex = data.categoryData.indexOf(params[0].axisValue);
-
-                            // 更新 Top Bar
                             if (timeIndex !== -1 && globalData.values[timeIndex]) {
                                 const [o, c, l, h, vol] = globalData.values[timeIndex];
                                 document.getElementById('tick-open').innerText = o.toFixed(2);
@@ -632,14 +738,10 @@
                                 closeEl.className = c >= o ? 'text-green-500 font-bold' : 'text-red-500 font-bold';
                                 document.getElementById('tick-vol').innerText = vol;
                             } else {
-                                ['tick-open', 'tick-high', 'tick-low', 'tick-close', 'tick-vol'].forEach(id => {
-                                    document.getElementById(id).innerText = '--';
-                                });
+                                ['tick-open', 'tick-high', 'tick-low', 'tick-close', 'tick-vol'].forEach(id => document.getElementById(id).innerText = '--');
                             }
 
                             let html = `<div class="font-mono text-xs font-bold mb-1 border-b pb-1 ${isDarkMode?'border-slate-700':'border-slate-200'}">${params[0].axisValue}</div>`;
-
-                            // 强制显示 O/H/L/C
                             if (timeIndex !== -1 && globalData.values[timeIndex]) {
                                 const [o, c, l, h, v] = globalData.values[timeIndex];
                                 const labelColor = isDarkMode ? 'text-slate-400' : 'text-slate-500';
@@ -650,7 +752,15 @@
                             params.forEach(item => {
                                 if(item.seriesType !== 'candlestick' && item.seriesName !== 'Volume' && item.value !== undefined && item.value !== null) {
                                     let val = typeof item.value === 'number' ? item.value.toFixed(2) : item.value;
-                                    html += `<div class="flex justify-between gap-4 text-xs"><span style="color:${item.color}">${item.seriesName}</span><span>${val}</span></div>`;
+                                    let slopeInfo = '';
+                                    if (item.seriesName.startsWith('MA') && globalData.maSlope && globalData.maSlope[timeIndex] !== undefined) {
+                                         const slope = globalData.maSlope[timeIndex];
+                                         if (slope !== null) slopeInfo = ` <span class="text-[10px] opacity-70">(${slope > 0 ? '↗' : (slope < 0 ? '↘' : '→')} ${Math.abs(slope).toFixed(2)})</span>`;
+                                    } else if (item.seriesName.startsWith('EMA') && globalData.emaSlope && globalData.emaSlope[timeIndex] !== undefined) {
+                                         const slope = globalData.emaSlope[timeIndex];
+                                         if (slope !== null) slopeInfo = ` <span class="text-[10px] opacity-70">(${slope > 0 ? '↗' : (slope < 0 ? '↘' : '→')} ${Math.abs(slope).toFixed(2)})</span>`;
+                                    }
+                                    html += `<div class="flex justify-between gap-4 text-xs"><span style="color:${item.color}">${item.seriesName}</span><span>${val}${slopeInfo}</span></div>`;
                                 }
                             });
                             return html;
