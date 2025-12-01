@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tick Analytics Pro (Live Monitor)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <!-- [新增] Markdown 解析库，用于渲染 AI 回复 -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        .glass-sidebar { background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); }
+        .custom-checkbox:checked { background-color: #3b82f6; border-color: #3b82f6; }
+        .fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        /* AI 分析内容的样式 */
+        .prose p { margin-bottom: 0.5em; }
+        .prose strong { color: #e2e8f0; font-weight: 700; }
+        .prose ul { list-style-type: disc; padding-left: 1.5em; margin-bottom: 0.5em; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-300 font-sans h-screen flex flex-col overflow-hidden selection:bg-blue-500 selection:text-white transition-colors duration-300">
+
+    <header id="main-header" class="bg-slate-900 border-b border-slate-800 h-12 flex items-center px-4 justify-between flex-shrink-0 z-20 shadow-md transition-colors duration-300">
+        <div class="flex items-center gap-6 text-xs font-mono">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-chart-line text-green-500 animate-pulse"></i>
+                <span id="app-title" class="font-bold text-slate-100 tracking-wider">TICK.USD (MT5 Live)</span>
+
+                <!-- [新增] 信号展示徽章 -->
+                <span id="signal-badge" class="hidden px-2 py-0.5 rounded text-[10px] font-bold tracking-wider border uppercase transition-all shadow-lg">
+                    <!-- JS 动态填充内容 -->
+                </span>
+            </div>
+            <div id="ticker-info" class="flex gap-4 opacity-90 hidden md:flex">
+                <span class="info-label text-slate-400">O: <span id="tick-open" class="text-blue-400 font-bold">--</span></span>
+                <span class="info-label text-slate-400">H: <span id="tick-high" class="text-blue-400 font-bold">--</span></span>
+                <span class="info-label text-slate-400">L: <span id="tick-low" class="text-blue-400 font-bold">--</span></span>
+                <span class="info-label text-slate-400">C: <span id="tick-close" class="text-blue-400 font-bold">--</span></span>
+                <span class="info-label text-slate-400">Vol: <span id="tick-vol" class="text-yellow-400">--</span></span>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2 bg-slate-800 px-2 py-1 rounded border border-slate-700 theme-status-box transition-colors duration-300">
+                <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse" id="ws-indicator"></div>
+                <span id="ws-status" class="font-mono text-xs text-green-400">Connected</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+        <aside id="main-sidebar" class="w-64 glass-sidebar border-r border-slate-800 flex flex-col p-4 gap-5 overflow-y-auto z-10 transition-colors duration-300">
+
+            <!-- AI 分析按钮 -->
+            <button onclick="requestAIAnalysis()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 rounded-lg shadow-lg shadow-indigo-500/20 transition flex items-center justify-center gap-2 font-bold border border-indigo-500 mb-4 group relative overflow-hidden">
+                <span class="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></span>
+                <i class="fa-solid fa-sparkles text-yellow-300"></i>
+                <span>AI 市场分析</span>
+            </button>
+
+            <div class="space-y-2">
+                <div class="section-title text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Timeframe</div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="setPeriod('5s')" class="period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-700 hover:bg-slate-800 text-slate-400 active-period bg-blue-600 border-blue-500 text-white" data-val="5s">5s</button>
+                    <button onclick="setPeriod('10s')" class="period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-700 hover:bg-slate-800 text-slate-400" data-val="10s">10s</button>
+                    <button onclick="setPeriod('30s')" class="period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-700 hover:bg-slate-800 text-slate-400" data-val="30s">30s</button>
+                    <button onclick="setPeriod('1min')" class="period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-700 hover:bg-slate-800 text-slate-400" data-val="1min">1m</button>
+                </div>
+                <div class="relative mt-1">
+                    <input type="text" id="customPeriodInput" placeholder="Custom (e.g. 15s)" class="theme-input w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition text-slate-300 placeholder-slate-600">
+                    <button onclick="applyCustomPeriod()" class="theme-input-btn absolute right-1 top-1 bottom-1 px-2 text-[10px] bg-slate-800 hover:bg-slate-700 rounded text-slate-300 transition">GO</button>
+                </div>
+            </div>
+
+            <hr class="theme-divider border-slate-800">
+
+            <div class="space-y-3">
+                <div class="section-title text-xs font-bold text-slate-500 uppercase tracking-widest">Main Indicators</div>
+                <div class="flex items-center justify-between group">
+                    <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-300 hover:text-white transition theme-text-main">
+                        <input type="checkbox" id="showMA" checked onchange="updateChartVisibility()" class="rounded border-slate-600 bg-slate-800 text-blue-500 w-3.5 h-3.5">
+                        <span>MA <span class="text-xs text-slate-500 theme-text-sub">(SMA)</span></span>
+                    </label>
+                    <input type="number" id="maPeriod" value="10" class="theme-input-line w-12 bg-transparent border-b border-slate-700 text-right text-xs focus:border-blue-500 outline-none text-yellow-500 font-mono" onchange="sendSettings()">
+                </div>
+                <div class="flex items-center justify-between group">
+                    <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-300 hover:text-white transition theme-text-main">
+                        <input type="checkbox" id="showEMA" checked onchange="updateChartVisibility()" class="rounded border-slate-600 bg-slate-800 text-cyan-500 w-3.5 h-3.5">
+                        <span>EMA</span>
+                    </label>
+                    <input type="number" id="emaPeriod" value="20" class="theme-input-line w-12 bg-transparent border-b border-slate-700 text-right text-xs focus:border-cyan-500 outline-none text-cyan-400 font-mono" onchange="sendSettings()">
+                </div>
+                <div class="flex items-center justify-between group">
+                    <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-300 hover:text-white transition theme-text-main">
+                        <input type="checkbox" id="showBOLL" checked onchange="updateChartVisibility()" class="rounded border-slate-600 bg-slate-800 text-purple-500 w-3.5 h-3.5">
+                        <span>BOLL</span>
+                    </label>
+                    <div class="flex gap-1 items-center">
+                        <input type="number" id="bollPeriod" value="20" class="theme-input-line w-10 bg-transparent border-b border-slate-700 text-center text-xs focus:border-purple-500 outline-none text-purple-400 font-mono" onchange="sendSettings()">
+                        <input type="number" id="bollStd" value="2" step="0.5" class="theme-input-line w-10 bg-transparent border-b border-slate-700 text-center text-xs focus:border-purple-500 outline-none text-purple-400 font-mono" onchange="sendSettings()">
+                    </div>
+                </div>
+            </div>
+
+            <hr class="theme-divider border-slate-800">
+
+            <div class="flex flex-col gap-1">
+                <button onclick="setSubIndicator('vol')" class="sub-ind-btn text-left px-3 py-2 rounded text-xs transition border border-transparent hover:bg-slate-800 text-slate-300 bg-slate-800/50 border-slate-700 text-blue-400 font-bold" data-val="vol">Volume</button>
+                <button onclick="setSubIndicator('macd')" class="sub-ind-btn text-left px-3 py-2 rounded text-xs transition border border-transparent hover:bg-slate-800 text-slate-400" data-val="macd">MACD</button>
+                <button onclick="setSubIndicator('rsi')" class="sub-ind-btn text-left px-3 py-2 rounded text-xs transition border border-transparent hover:bg-slate-800 text-slate-400" data-val="rsi">RSI</button>
+            </div>
+
+            <div class="mt-auto relative">
+                <div id="settingsPanel" class="hidden absolute bottom-12 left-0 w-full bg-slate-800 border border-slate-700 rounded p-3 space-y-3 fade-in shadow-xl z-30 theme-panel">
+                    <div class="section-title text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Theme</div>
+                    <div class="flex items-center justify-between theme-text-main">
+                        <span class="text-sm">Light/Dark Mode</span>
+                        <button onclick="toggleTheme()" id="themeToggle" class="px-2 py-0.5 rounded text-xs transition-colors duration-200 font-mono bg-blue-600 text-white border border-blue-600">Dark</button>
+                    </div>
+                </div>
+
+                <button onclick="toggleSettingsPanel()" id="settingsButton" class="action-btn w-full bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 rounded border border-slate-700 transition flex items-center justify-center text-xs font-bold">
+                    <i class="fa-solid fa-gear me-2"></i> Settings
+                </button>
+            </div>
+        </aside>
+
+        <main id="chart-container" class="flex-1 bg-slate-950 relative flex flex-col transition-colors duration-300">
+            <div id="main-chart" class="w-full h-full"></div>
+
+            <!-- AI Analysis Modal -->
+            <div id="aiModal" class="hidden absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm fade-in">
+                <div class="bg-slate-900 border border-indigo-500/50 rounded-xl shadow-2xl w-3/4 max-w-2xl flex flex-col overflow-hidden transform transition-all scale-100">
+                    <div class="flex justify-between items-center p-4 border-b border-slate-800 bg-slate-800/50">
+                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-robot text-indigo-400"></i>
+                            <span>Gemini 市场分析</span>
+                        </h3>
+                        <button onclick="closeAIModal()" class="text-slate-400 hover:text-white transition"><i class="fa-solid fa-times text-lg"></i></button>
+                    </div>
+
+                    <div class="p-6 overflow-y-auto max-h-[60vh] bg-slate-900">
+                        <div id="aiContent" class="text-slate-300 text-sm leading-relaxed prose prose-invert max-w-none">
+                            <!-- AI Content Here -->
+                            <div class="flex flex-col items-center justify-center py-8 text-slate-500">
+                                <i class="fa-solid fa-circle-notch fa-spin text-3xl mb-3 text-indigo-500"></i>
+                                <span>正在分析市场数据...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-3 border-t border-slate-800 bg-slate-800/30 text-xs text-slate-500 text-center">
+                        由 Google Gemini 提供支持 · 投资有风险，决策需谨慎
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        let myChart = echarts.init(document.getElementById('main-chart'));
+        let currentPeriod = '5s';
+        let currentSubInd = 'vol';
+        let globalData = null;
+        let zoomState = { start: 85, end: 100 };
+        let isDarkMode = true;
+
+        // WebSocket Setup
+        const socket = io();
+
+        socket.on('connect', () => {
+            document.getElementById('ws-indicator').classList.remove('bg-red-500');
+            document.getElementById('ws-indicator').classList.add('bg-green-500', 'animate-pulse');
+            document.getElementById('ws-status').innerText = 'Connected';
+            document.getElementById('ws-status').className = 'font-mono text-xs text-green-400';
+            sendSettings();
+        });
+
+        socket.on('disconnect', () => {
+            document.getElementById('ws-indicator').classList.remove('bg-green-500', 'animate-pulse');
+            document.getElementById('ws-indicator').classList.add('bg-red-500');
+            document.getElementById('ws-status').innerText = 'Disconnected';
+            document.getElementById('ws-status').className = 'font-mono text-xs text-red-400';
+        });
+
+        socket.on('market_update', (data) => {
+            globalData = data;
+            requestAnimationFrame(() => renderChart(data));
+        });
+
+        socket.on('ai_analysis_result', (data) => {
+            const contentDiv = document.getElementById('aiContent');
+            if(window.marked) {
+                contentDiv.innerHTML = marked.parse(data.text);
+            } else {
+                contentDiv.innerText = data.text; // Fallback
+            }
+        });
+
+        function sendSettings() {
+            const settings = {
+                period: currentPeriod,
+                ma: document.getElementById('maPeriod').value,
+                ema: document.getElementById('emaPeriod').value,
+                bollP: document.getElementById('bollPeriod').value,
+                bollS: document.getElementById('bollStd').value
+            };
+            socket.emit('update_settings', settings);
+        }
+
+        // --- AI Functions ---
+        function requestAIAnalysis() {
+            const modal = document.getElementById('aiModal');
+            const content = document.getElementById('aiContent');
+
+            modal.classList.remove('hidden');
+            content.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-8 text-slate-500">
+                    <i class="fa-solid fa-circle-notch fa-spin text-3xl mb-3 text-indigo-500"></i>
+                    <span>正在分析市场数据...</span>
+                </div>`;
+
+            socket.emit('request_ai_analysis');
+        }
+
+        function closeAIModal() {
+            document.getElementById('aiModal').classList.add('hidden');
+        }
+
+        window.addEventListener('resize', () => myChart.resize());
+        myChart.on('datazoom', function(evt) {
+            const opt = myChart.getOption();
+            if(opt.dataZoom) {
+                zoomState.start = opt.dataZoom[0].start;
+                zoomState.end = opt.dataZoom[0].end;
+            }
+        });
+
+        function renderChart(data) {
+            const showMA = document.getElementById('showMA').checked;
+            const showEMA = document.getElementById('showEMA').checked;
+            const showBOLL = document.getElementById('showBOLL').checked;
+
+            // Padding logic
+            const PAD_COUNT = 30;
+            const pad = (arr, count, val=null) => [...arr, ...Array(count).fill(val)];
+
+            const xData = pad(data.categoryData, PAD_COUNT, "");
+            const ohlcData = pad(data.values.map(item => [item[0], item[1], item[2], item[3]]), PAD_COUNT, [NaN, NaN, NaN, NaN]);
+
+            const maData = pad(data.maData, PAD_COUNT, NaN);
+            const emaData = pad(data.emaData, PAD_COUNT, NaN);
+            const bollUp = pad(data.boll.up, PAD_COUNT, NaN);
+            const bollLow = pad(data.boll.low, PAD_COUNT, NaN);
+
+            // Ticker & Signal Logic
+            const lastIdx = data.values.length - 1;
+            if (lastIdx >= 0) {
+                const [o, c, l, h, v] = data.values[lastIdx];
+                document.getElementById('tick-open').innerText = o.toFixed(2);
+                document.getElementById('tick-high').innerText = h.toFixed(2);
+                document.getElementById('tick-low').innerText = l.toFixed(2);
+                const closeEl = document.getElementById('tick-close');
+                closeEl.innerText = c.toFixed(2);
+                closeEl.className = c >= o ? 'text-green-500 font-bold' : 'text-red-500 font-bold';
+                document.getElementById('tick-vol').innerText = v;
+
+                // [新增] 顶部信号逻辑
+                const signalBadge = document.getElementById('signal-badge');
+                // 使用原始数据 (非padded) 的最后一项
+                // 注意：如果 Boll 数据还未生成 (data.boll.up 可能为 null 或长度不足)，需要保护
+                if(data.boll && data.boll.up && data.boll.up.length > lastIdx) {
+                    const bUp = data.boll.up[lastIdx];
+                    const bLow = data.boll.low[lastIdx];
+
+                    if (bUp !== null && bLow !== null) {
+                        if (c > bUp) {
+                            // 卖出信号 (超买)
+                            signalBadge.innerText = "SELL SIGNAL";
+                            signalBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold tracking-wider border uppercase transition-all shadow-lg bg-red-900/50 text-red-400 border-red-500 animate-pulse";
+                            signalBadge.classList.remove('hidden');
+                        } else if (c < bLow) {
+                            // 买入信号 (超卖)
+                            signalBadge.innerText = "BUY SIGNAL";
+                            signalBadge.className = "px-2 py-0.5 rounded text-[10px] font-bold tracking-wider border uppercase transition-all shadow-lg bg-green-900/50 text-green-400 border-green-500 animate-pulse";
+                            signalBadge.classList.remove('hidden');
+                        } else {
+                            signalBadge.classList.add('hidden');
+                        }
+                    } else {
+                        signalBadge.classList.add('hidden');
+                    }
+                }
+            }
+
+            const upColor = '#22c55e';
+            const downColor = '#ef4444';
+            const bgColor = isDarkMode ? '#020617' : '#ffffff';
+            const gridColor = isDarkMode ? '#1e293b' : '#e2e8f0';
+            const labelColor = isDarkMode ? '#64748b' : '#94a3b8';
+
+            let seriesList = [
+                {
+                    id: 'candle',
+                    name: 'Price',
+                    type: 'candlestick',
+                    data: ohlcData,
+                    itemStyle: { color: upColor, color0: downColor, borderColor: upColor, borderColor0: downColor },
+                    animation: false
+                }
+            ];
+
+            if(showMA) seriesList.push({
+                id: 'ma', name: 'MA', type: 'line', data: maData, smooth: true, symbol: 'none',
+                color: '#eab308', lineStyle: { width: 1 }, animation: false
+            });
+
+            if(showEMA) seriesList.push({
+                id: 'ema', name: 'EMA', type: 'line', data: emaData, smooth: true, symbol: 'none',
+                color: '#06b6d4', lineStyle: { width: 1 }, animation: false
+            });
+
+            if(showBOLL) {
+                seriesList.push({
+                    id: 'boll_up', name: 'UP', type: 'line', data: bollUp, smooth: true, symbol: 'none',
+                    color: '#a855f7', lineStyle: { width: 1.5, opacity: 0.8 }, animation: false
+                });
+                seriesList.push({
+                    id: 'boll_low', name: 'LOW', type: 'line', data: bollLow, smooth: true, symbol: 'none',
+                    color: '#a855f7', lineStyle: { width: 1.5, opacity: 0.8 }, animation: false
+                });
+            }
+
+            // Sub Indicators
+            if(currentSubInd === 'vol') {
+                const volData = pad(data.values.map((item, index) => {
+                    const isUp = item[1] >= item[0];
+                    return { value: item[4], itemStyle: { color: isUp ? 'rgba(34,197,94,0.5)' : 'rgba(239,68,68,0.5)' } };
+                }), PAD_COUNT, null);
+
+                seriesList.push({
+                    id: 'vol', name: 'Volume', type: 'bar', xAxisIndex: 1, yAxisIndex: 1,
+                    data: volData, animation: false
+                });
+            } else if(currentSubInd === 'macd') {
+                seriesList.push(
+                    { id: 'dif', name: 'DIF', type: 'line', xAxisIndex: 1, yAxisIndex: 1, data: pad(data.macd.dif, PAD_COUNT, NaN), symbol: 'none', color: isDarkMode?'#fff':'#333', lineStyle: {width:1}, animation: false },
+                    { id: 'dea', name: 'DEA', type: 'line', xAxisIndex: 1, yAxisIndex: 1, data: pad(data.macd.dea, PAD_COUNT, NaN), symbol: 'none', color: '#f59e0b', lineStyle: {width:1}, animation: false },
+                    { id: 'macd', name: 'MACD', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, data: pad(data.macd.hist, PAD_COUNT, NaN), itemStyle: { color: p => p.value>0?upColor:downColor }, animation: false }
+                );
+            } else if(currentSubInd === 'rsi') {
+                seriesList.push({
+                    id: 'rsi', name: 'RSI', type: 'line', xAxisIndex: 1, yAxisIndex: 1, data: pad(data.rsi, PAD_COUNT, NaN), symbol: 'none', color: '#d946ef', lineStyle: {width:1}, animation: false
+                });
+            }
+
+            const option = {
+                backgroundColor: bgColor,
+                animation: false,
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'cross' },
+                    backgroundColor: isDarkMode ? 'rgba(15,23,42,0.95)' : 'rgba(255,255,255,0.95)',
+                    borderColor: isDarkMode ? '#334155' : '#e2e8f0',
+                    textStyle: {color: isDarkMode ? '#e2e8f0' : '#1e293b'},
+                    formatter: function (params) {
+                        if (!params.length) return '';
+                        const axisValue = params[0].axisValue;
+                        if (!axisValue) return '';
+
+                        let html = `<div class="font-mono text-xs font-bold mb-2 border-b pb-1 ${isDarkMode?'border-slate-700':'border-slate-200'}">${axisValue}</div>`;
+
+                        const timeIndex = globalData.categoryData.indexOf(axisValue);
+                        if(timeIndex !== -1 && globalData.values[timeIndex]) {
+                            const [o, c, l, h, v] = globalData.values[timeIndex];
+                            const colorClass = c >= o ? 'text-green-500' : 'text-red-500';
+                            html += `
+                            <div class="flex justify-between items-center gap-4 text-xs mb-2">
+                                <span class="text-slate-500 font-bold">OHLC</span>
+                                <div class="font-mono ${colorClass}">
+                                    <span>O:${Number(o).toFixed(2)}</span>
+                                    <span class="ml-1">H:${Number(h).toFixed(2)}</span>
+                                    <span class="ml-1">L:${Number(l).toFixed(2)}</span>
+                                    <span class="ml-1">C:${Number(c).toFixed(2)}</span>
+                                </div>
+                            </div>`;
+
+                            if(showBOLL && globalData.boll && globalData.boll.up && globalData.boll.low) {
+                                const up = Number(globalData.boll.up[timeIndex]);
+                                const low = Number(globalData.boll.low[timeIndex]);
+                                if(!isNaN(up) && !isNaN(low)) {
+                                    const width = up - low;
+                                    html += `
+                                    <div class="flex justify-between items-center gap-4 text-xs mb-2 border-b border-slate-800 pb-2">
+                                        <span class="text-purple-400 font-bold">Band Width</span>
+                                        <span class="font-mono font-bold text-purple-400">${width.toFixed(2)}</span>
+                                    </div>`;
+                                }
+                            }
+                        }
+
+                        params.forEach(item => {
+                            if(item.seriesType !== 'candlestick' && item.seriesName !== 'Volume' && item.value !== undefined) {
+                                const val = Number(item.value);
+                                if(!isNaN(val)) {
+                                    html += `
+                                    <div class="flex justify-between items-center gap-4 text-xs">
+                                        <div class="flex items-center gap-2">
+                                            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background-color:${item.color}"></span>
+                                            <span class="text-slate-500">${item.seriesName}</span>
+                                        </div>
+                                        <span class="font-mono font-bold">${val.toFixed(2)}</span>
+                                    </div>`;
+                                }
+                            }
+                        });
+                        return html;
+                    }
+                },
+                grid: [{ left: '50', right: '20', top: '20', height: '60%' }, { left: '50', right: '20', top: '75%', height: '15%' }],
+                xAxis: [
+                    { type: 'category', data: xData, gridIndex: 0, axisLabel: { show: false }, axisTick: { show: false }, boundaryGap: false },
+                    { type: 'category', data: xData, gridIndex: 1, axisLabel: { color: labelColor, fontSize: 10 }, boundaryGap: false }
+                ],
+                yAxis: [
+                    { scale: true, gridIndex: 0, splitLine: { lineStyle: { color: gridColor } }, axisLabel: { color: labelColor } },
+                    { scale: true, gridIndex: 1, splitLine: { show: false }, axisLabel: { color: labelColor, fontSize: 10 }, splitNumber: 3 }
+                ],
+                dataZoom: [
+                    { type: 'inside', xAxisIndex: [0, 1], start: zoomState.start, end: zoomState.end },
+                    { type: 'slider', xAxisIndex: [0, 1], top: '94%', height: 16, borderColor: gridColor, fillerColor: isDarkMode ? 'rgba(59,130,246,0.1)' : 'rgba(59,130,246,0.2)', handleStyle: { color: '#3b82f6' }, start: zoomState.start, end: zoomState.end }
+                ],
+                series: seriesList
+            };
+
+            myChart.setOption(option, { replaceMerge: ['series'] });
+        }
+
+        function setPeriod(val) {
+            currentPeriod = val;
+            document.querySelectorAll('.period-btn').forEach(btn => {
+                const baseClass = "period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border";
+                if(btn.dataset.val === val) {
+                    btn.className = `${baseClass} border-blue-500 bg-blue-600 text-white shadow-lg`;
+                } else {
+                    btn.className = `${baseClass} border-slate-700 hover:bg-slate-800 text-slate-400`;
+                }
+            });
+            updateThemeClasses(isDarkMode);
+            zoomState = { start: 85, end: 100 };
+            sendSettings();
+        }
+
+        function applyCustomPeriod() {
+            const val = document.getElementById('customPeriodInput').value;
+            if(val) {
+                currentPeriod = val;
+                document.querySelectorAll('.period-btn').forEach(btn => btn.classList.remove('active-period'));
+                updateThemeClasses(isDarkMode);
+                zoomState = { start: 85, end: 100 };
+                sendSettings();
+            }
+        }
+
+        function setSubIndicator(val) {
+            currentSubInd = val;
+            updateSubIndStyle(val);
+            if(globalData) renderChart(globalData);
+        }
+
+        function toggleSettingsPanel() { document.getElementById('settingsPanel').classList.toggle('hidden'); }
+
+        function toggleTheme() {
+            isDarkMode = !isDarkMode;
+            const btn = document.getElementById('themeToggle');
+            const body = document.body;
+            const header = document.getElementById('main-header');
+            const sidebar = document.getElementById('main-sidebar');
+            const chartContainer = document.getElementById('chart-container');
+            const appTitle = document.getElementById('app-title');
+
+            if (isDarkMode) {
+                body.className = "bg-slate-950 text-slate-300 font-sans h-screen flex flex-col overflow-hidden selection:bg-blue-500 selection:text-white transition-colors duration-300";
+                header.className = "bg-slate-900 border-b border-slate-800 h-12 flex items-center px-4 justify-between flex-shrink-0 z-20 shadow-md transition-colors duration-300";
+                sidebar.className = "w-64 glass-sidebar border-r border-slate-800 flex flex-col p-4 gap-5 overflow-y-auto z-10 transition-colors duration-300";
+                chartContainer.className = "flex-1 bg-slate-950 relative flex flex-col transition-colors duration-300";
+                appTitle.className = "font-bold text-slate-100 tracking-wider";
+                btn.innerText = "Dark";
+                btn.className = "px-2 py-0.5 rounded text-xs transition-colors duration-200 font-mono bg-blue-600 text-white border border-blue-600";
+                updateThemeClasses(true);
+            } else {
+                body.className = "bg-slate-50 text-slate-800 font-sans h-screen flex flex-col overflow-hidden selection:bg-blue-200 selection:text-slate-900 transition-colors duration-300";
+                header.className = "bg-white border-b border-slate-200 h-12 flex items-center px-4 justify-between flex-shrink-0 z-20 shadow-sm transition-colors duration-300";
+                sidebar.className = "w-64 bg-white border-r border-slate-200 flex flex-col p-4 gap-5 overflow-y-auto z-10 transition-colors duration-300";
+                chartContainer.className = "flex-1 bg-white relative flex flex-col transition-colors duration-300";
+                appTitle.className = "font-bold text-slate-800 tracking-wider";
+                btn.innerText = "Light";
+                btn.className = "px-2 py-0.5 rounded text-xs transition-colors duration-200 font-mono bg-slate-200 text-slate-600 border border-slate-300";
+                updateThemeClasses(false);
+            }
+            if(globalData) renderChart(globalData);
+        }
+
+        function updateThemeClasses(dark) {
+            document.querySelectorAll('.info-label').forEach(el => el.className = dark ? "info-label text-slate-400" : "info-label text-slate-500");
+            document.querySelectorAll('.section-title').forEach(el => el.className = dark ? "section-title text-xs font-bold text-slate-500 uppercase tracking-widest mb-2" : "section-title text-xs font-bold text-slate-400 uppercase tracking-widest mb-2");
+            document.querySelectorAll('.theme-text-main').forEach(el => el.className = dark ? "flex items-center gap-2 cursor-pointer text-sm text-slate-300 hover:text-white transition theme-text-main" : "flex items-center gap-2 cursor-pointer text-sm text-slate-700 hover:text-blue-600 transition theme-text-main");
+            document.querySelectorAll('.theme-text-sub').forEach(el => el.className = dark ? "text-xs text-slate-500 theme-text-sub" : "text-xs text-slate-400 theme-text-sub");
+
+            document.querySelectorAll('.period-btn').forEach(btn => {
+                const isActive = btn.classList.contains('active-period') || (btn.dataset.val === currentPeriod);
+                if(!isActive) {
+                    btn.className = dark
+                        ? "period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-700 hover:bg-slate-800 text-slate-400"
+                        : "period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-200 hover:bg-slate-100 text-slate-600";
+                } else {
+                     btn.className = dark
+                        ? "period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-700 hover:bg-slate-800 active-period bg-blue-600 border-blue-500 text-white shadow-lg"
+                        : "period-btn px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 border border-slate-200 hover:bg-slate-100 active-period bg-blue-500 border-blue-400 text-white shadow-md shadow-blue-200";
+                }
+            });
+
+            document.getElementById('customPeriodInput').className = dark ? "theme-input w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition text-slate-300 placeholder-slate-600" : "theme-input w-full bg-slate-50 border border-slate-300 rounded px-3 py-1.5 text-xs focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition text-slate-800 placeholder-slate-400";
+            document.querySelector('.theme-input-btn').className = dark ? "theme-input-btn absolute right-1 top-1 bottom-1 px-2 text-[10px] bg-slate-800 hover:bg-slate-700 rounded text-slate-300 transition" : "theme-input-btn absolute right-1 top-1 bottom-1 px-2 text-[10px] bg-slate-200 hover:bg-slate-300 rounded text-slate-600 transition";
+
+            document.querySelectorAll('.theme-divider').forEach(el => {
+                if(el.tagName === 'HR') el.className = dark ? "theme-divider border-slate-800" : "theme-divider border-slate-200";
+                else if(el.tagName === 'DIV') el.className = dark ? "section-title text-xs font-bold text-slate-500 uppercase tracking-widest pt-2 mb-1 border-t border-slate-700 theme-divider" : "section-title text-xs font-bold text-slate-400 uppercase tracking-widest pt-2 mb-1 border-t border-slate-200 theme-divider";
+            });
+
+            document.querySelectorAll('.action-btn').forEach(btn => {
+                let base = dark
+                    ? "action-btn w-full bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 rounded border border-slate-700 transition flex items-center justify-center text-xs font-bold"
+                    : "action-btn w-full bg-white hover:bg-slate-50 text-slate-700 py-2 rounded border border-slate-200 transition flex items-center justify-center text-xs font-bold";
+                btn.className = base;
+            });
+
+            document.querySelector('.theme-status-box').className = dark ? "flex items-center gap-2 bg-slate-800 px-2 py-1 rounded border border-slate-700 theme-status-box transition-colors duration-300" : "flex items-center gap-2 bg-white px-2 py-1 rounded border border-slate-200 theme-status-box transition-colors duration-300";
+            document.getElementById('settingsPanel').className = dark ? "hidden absolute bottom-12 left-0 w-full bg-slate-800 border border-slate-700 rounded p-3 space-y-3 fade-in shadow-xl z-30 theme-panel" : "hidden absolute bottom-12 left-0 w-full bg-white border border-slate-200 rounded p-3 space-y-3 fade-in shadow-xl z-30 theme-panel";
+            updateSubIndStyle(currentSubInd);
+        }
+
+        function updateSubIndStyle(val) {
+            document.querySelectorAll('.sub-ind-btn').forEach(btn => {
+                const isActive = btn.dataset.val === val;
+                if(isDarkMode) {
+                    btn.className = isActive
+                        ? "sub-ind-btn text-left px-3 py-2 rounded text-xs transition border border-transparent hover:bg-slate-800 text-slate-300 bg-slate-800/50 border-slate-700 text-blue-400 font-bold"
+                        : "sub-ind-btn text-left px-3 py-2 rounded text-xs transition border border-transparent hover:bg-slate-800 text-slate-400";
+                } else {
+                     btn.className = isActive
+                        ? "sub-ind-btn text-left px-3 py-2 rounded text-xs transition border border-transparent hover:bg-slate-100 text-slate-800 bg-blue-50 border-blue-200 text-blue-600 font-bold"
+                        : "sub-ind-btn text-left px-3 py-2 rounded text-xs transition border border-transparent hover:bg-slate-50 text-slate-500";
+                }
+            });
+        }
+    </script>
+</body>
+</html>
